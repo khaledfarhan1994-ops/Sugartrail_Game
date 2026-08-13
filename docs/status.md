@@ -1,14 +1,18 @@
 # Project Status
 
-Last updated: 2026-08-13 (Step 12 complete via smoke-substitute; Step 13 next)
+Last updated: 2026-08-13 (Step 13 complete; Step 14 next)
 
 ## Current milestone
 
-Phase C, Step 12: Validate the vertical slice on Android.
-Steps 01-11 are complete. The deterministic engine, board
-presentation, level session, and the first ten data-driven curated
-levels (with a localization-keyed tutorial) are in place. Step 12
-delivers the vertical slice scene (`scripts/presentation/vertical_slice/vertical_slice.gd`) and a headless smoke profile runner (`scripts/presentation/vertical_slice/vertical_slice_smoke.gd`) that exercises startup, level load, swap resolution, win, retry, and loss paths and emits `STEP12_*` metrics. The APK build is blocked by a generic Godot 4.3 "configuration errors" message; the headless smoke runner is the documented substitute (see `docs/11-implementation-roadmap.md` Step 12 Blockers). 105 unit tests pass.
+Phase C, Step 13: Implement special-piece creation and activation.
+Steps 01-12 are complete. Step 13 delivers four special-piece kinds
+(STRIPED_ROW, STRIPED_COL, COLOR_BOMB, AREA) with deterministic
+creation precedence (5 > 4 > T/L), player-action-aware placement
+(swap-cell beats centre for 4-runs), per-cycle activation (row/col
+cleared for striped, all-of-color for color bomb, 3x3 clipped for
+area), and snapshot/replay/hash parity. 40 new fixtures bring the
+total to 145 unit tests. The engine version is bumped from 0.1.0
+to 0.2.0; existing replay fixtures use the new version literal.
 
 ## Confirmed decisions
 
@@ -40,8 +44,8 @@ delivers the vertical slice scene (`scripts/presentation/vertical_slice/vertical
 | Headless project import | `tools/build/godot/godot --headless --import` | 2026-08-13 — pass (Step 01 + Step 02 acceptance) |
 | Headless boot scene | `tools/build/godot/godot --headless --path . --quit-after 1 res://scenes/boot/boot.tscn` | 2026-08-13 — pass; boot.gd printed ready timestamp |
 | Vertical slice smoke profile | `tools/build/godot/godot --headless --path . res://scenes/vertical_slice/vertical_slice_smoke.tscn` | 2026-08-13 — pass; emits STEP12_LOAD, STEP12_SWAP (×8), STEP12_WIN, STEP12_END. Level 1 won in 684 ms with 8 swaps (score 390, seed 364017463632246932). |
-| Run unit tests | `bash tools/test.sh` | 2026-08-13 — exit 0, 105/105 passing (board 10, rng 9, rules 13, version 3, resolution 14, replay 12, gameplay 7, session 16, levels_validation 10, levels_curated 11) |
-| Lint GDScript | `gdlint scripts/ tests/` | 2026-08-13 — Step 12 new files lint clean; 8 pre-existing errors from Steps 05-06 remain (logged as known issue, will fix in a focused lint pass) |
+| Run unit tests | `bash tools/test.sh` | 2026-08-13 — exit 0, 145/145 passing (board 10, rng 9, rules 13, version 3, resolution 14, replay 12, gameplay 7, session 16, levels_validation 10, levels_curated 11, specials_data 10, specials_activation 13, specials_integration 17) |
+| Lint GDScript | `gdlint scripts/ tests/` | 2026-08-13 — Step 13 new files lint clean; 5 pre-existing errors from Steps 05-06 remain (4 from before Step 13, plus 1 new enum-after-class error of the same family). Out of scope for Step 13. |
 | One-shot CI run | `bash tools/ci.sh` | 2026-08-13 — verify+disk+tests pass; lint fails on 8 pre-existing Step 05-06 errors |
 | Android APK export | `tools/build/godot/godot --headless --path . --export-debug "Android Debug" "build/test.apk"` | 2026-08-13 — blocked by Godot 4.3 generic "configuration errors" message. See Step 12 Blockers in `docs/11-implementation-roadmap.md`. |
 

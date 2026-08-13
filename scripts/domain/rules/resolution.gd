@@ -13,12 +13,19 @@ extends RefCounted
 
 ## Event kinds. New presentation/UI code subscribes to these to
 ## animate removals, drops, and spawns.
+##
+## Step 13 adds SPECIAL_CREATE and SPECIAL_ACTIVATE for line-clear,
+## area-clear, and color-bomb specials. Per cycle, SPECIAL_CREATE
+## events are emitted first, then SPECIAL_ACTIVATE (carrying the
+## cleared-cell list), then REMOVE for the actual cells cleared.
 enum EventKind {
 	REMOVE = 0,
 	MOVE = 1,
 	SPAWN = 2,
 	CASCADE_START = 3,
 	CASCADE_END = 4,
+	SPECIAL_CREATE = 5,
+	SPECIAL_ACTIVATE = 6,
 }
 
 # ----------------------------------------------------------------------------
@@ -28,10 +35,14 @@ enum EventKind {
 const Board = preload("res://scripts/domain/board/board.gd")
 const Rules = preload("res://scripts/domain/rules/rules.gd")
 const Rng = preload("res://scripts/domain/rng/rng.gd")
+const Specials = preload("res://scripts/domain/rules/specials.gd")
 const Coord = Board.CellCoord
 const CellKind = Board.CellKind
 const Cell = Board.Cell
 const Piece = Board.Piece
+const SpecialPiece = Board.SpecialPiece
+const Special = Board.Special
+const SpecialKind = Board.SpecialKind
 
 ## Maximum number of cascade cycles allowed before resolution fails.
 ## 100 is generous: a real level resolves in < 20 cycles. Anything
@@ -52,9 +63,20 @@ const MAX_REMOVES_PER_CYCLE: int = 4096
 ## cascading until the board is stable (no matches). Returns a
 ## CascadeResult describing every event that occurred.
 ##
+## Step 13: each cycle also detects special-piece creations
+## (4-line striped, 5-line color bomb, T/L area clearer) and
+## activates them. Per cycle the event log emits SPECIAL_CREATE
+## events, then SPECIAL_ACTIVATE events, then the normal REMOVE /
+## MOVE / SPAWN events.
+##
+## `swap_a` and `swap_b` (optional, default null) describe the
+## player action that triggered this resolution; they participate in
+## special-creation precedence (swap cell wins for 4-runs). Pass
+## null for cascade cycles after the initial swap.
+##
 ## The RNG is required for refill. Pass the same RNG instance to
 ## every resolution call to keep gameplay deterministic.
-static func resolve(board: Board, rng: Rng) -> CascadeResult:
+static func resolve(board: Board, rng: Rng, swap_a: Coord = null, swap_b: Coord = null) -> CascadeResult:
 	var result: CascadeResult = CascadeResult.new()
 	var cycle: int = 0
 	while true:
@@ -65,9 +87,8 @@ static func resolve(board: Board, rng: Rng) -> CascadeResult:
 		var runs: Array = Rules.find_runs(board)
 		if runs.size() == 0:
 			break
-		# Record cascade start with the cycle index for this cycle.
 		result.events.append(DomainEvent.new(EventKind.CASCADE_START, [], -1, cycle - 1))
-		var removed_this_cycle: int = _resolve_cycle(board, runs, result, cycle - 1)
+		var removed_this_cycle: int = _resolve_cycle(board, runs, result, cycle - 1, swap_a, swap_b)
 		if removed_this_cycle == 0:
 			push_error("resolve: cycle %d found runs but removed 0 pieces" % cycle)
 			break
@@ -75,37 +96,116 @@ static func resolve(board: Board, rng: Rng) -> CascadeResult:
 		_apply_gravity(board, result, cycle - 1)
 		_refill(board, rng, result, cycle - 1)
 		result.events.append(DomainEvent.new(EventKind.CASCADE_END, [], -1, cycle - 1))
+		# Cascade cycles after the first have no player-action context.
+		swap_a = null
+		swap_b = null
 	result.cycles = cycle - 1
 	return result
 
 # ----------------------------------------------------------------------------
-# Cycle: remove matched cells
+# Cycle: detect specials, activate specials, remove matched cells
 # ----------------------------------------------------------------------------
 
-## Remove all cells in the given runs. Runs is an Array of Arrays of
-## CellCoord. Returns the number of pieces removed this cycle.
+## Run one resolution cycle. Returns the number of pieces removed
+## this cycle. The cycle is:
+##
+##   1. detect_special_creations (4/5/T/L detection).
+##   2. existing-special detection: any cell already holding a
+##      SpecialPiece that is part of a match activates here too.
+##   3. emit SPECIAL_CREATE events (lex-sorted).
+##   4. activate every special in the cycle; emit SPECIAL_ACTIVATE
+##      events (lex-sorted).
+##   5. remove every cell in the union of match cells + activation
+##      cleared cells, deduped, lex-sorted. Emit REMOVE events in
+##      that order.
 static func _resolve_cycle(board: Board, runs: Array,
-		result: CascadeResult, cascade_index: int) -> int:
-	var removed := {}
-	var removed_count: int = 0
+		result: CascadeResult, cascade_index: int,
+		swap_a: Coord, swap_b: Coord) -> int:
+	# Build a coord -> kind map for the run cells (used to populate
+	# color bombs with their run's kind).
+	var kind_for_coord: Dictionary = {}
 	for run in runs:
 		for c in run:
-			var coord: Coord = c
-			var key: String = "%d,%d" % [coord.x, coord.y]
-			if removed.has(key):
-				continue
-			removed[key] = true
-			var cell: Cell = board.cell_at(coord)
-			if cell == null or not cell.is_piece():
-				continue
-			removed_count += 1
-			if removed_count > MAX_REMOVES_PER_CYCLE:
-				push_error("resolve: cycle removed too many cells; possible bug")
-				return removed_count
-			var piece_kind: int = cell.piece.kind_id
-			board.set_empty(coord)
-			result.events.append(DomainEvent.new(
-				EventKind.REMOVE, [coord], piece_kind, cascade_index))
+			var cc: Coord = c
+			var cell: Cell = board.cell_at(cc)
+			if cell != null and cell.is_piece():
+				kind_for_coord["%d,%d" % [cc.x, cc.y]] = cell.piece.kind_id
+	# Detect special creations from the runs.
+	var plan: Specials.CreationPlan = Specials.detect_special_creations(runs, swap_a, swap_b)
+	# Find any existing SpecialPiece cells that are part of a run
+	# (those will activate in the same cycle).
+	var existing_special_cells: Array = []
+	for run in runs:
+		for c in run:
+			var cc: Coord = c
+			var cell: Cell = board.cell_at(cc)
+			if cell != null and cell.is_piece() and cell.piece is SpecialPiece:
+				# Avoid double-listing if a creation plan also picked
+				# this cell (shouldn't happen — Step 13 specials
+				# created from a match detonate now and supersede any
+				# "previous" special).
+				if not plan.has_creation_at(cc):
+					existing_special_cells.append(cc)
+	# Apply creations to the board BEFORE activating, so a created
+	# special can be activated in the same cycle.
+	Specials.apply_creations(board, plan, kind_for_coord)
+	# Emit SPECIAL_CREATE events.
+	for entry in plan.sorted_entries():
+		var cc: Coord = entry["coord"]
+		var spec: Special = entry["special"]
+		var key: String = "%d,%d" % [cc.x, cc.y]
+		var kind_id: int = int(kind_for_coord.get(key, 0))
+		result.events.append(DomainEvent.new(
+			EventKind.SPECIAL_CREATE, [cc], kind_id, cascade_index, spec.kind, cc, []))
+	# Activate every special (created + existing) and gather cleared
+	# cells.
+	var activation_result: Dictionary = Specials.activate_all(
+			board, plan, existing_special_cells, kind_for_coord)
+	for act in activation_result["activations"]:
+		var origin: Coord = act["origin"]
+		var ar: Dictionary = act["result"]
+		var origin_kind_id: int = int(kind_for_coord.get(
+			"%d,%d" % [origin.x, origin.y], 0))
+		result.events.append(DomainEvent.new(
+			EventKind.SPECIAL_ACTIVATE, [origin], origin_kind_id, cascade_index,
+			int(ar.get("kind", SpecialKind.NONE)), origin, ar.get("cleared", [])))
+	# Build the removal set: match cells + activation cleared cells.
+	var to_remove: Dictionary = {}
+	for run in runs:
+		for c in run:
+			var cc: Coord = c
+			to_remove["%d,%d" % [cc.x, cc.y]] = cc
+	for c in activation_result["cleared"]:
+		var cc: Coord = c
+		to_remove["%d,%d" % [cc.x, cc.y]] = cc
+	# Lex-sort removed cells; emit REMOVE events; mutate board.
+	var removed_keys: Array = []
+	for k in to_remove.keys():
+		removed_keys.append(k)
+	removed_keys.sort_custom(func(a, b):
+		var pa: PackedStringArray = a.split(",")
+		var pb: PackedStringArray = b.split(",")
+		var ax: int = int(pa[0])
+		var ay: int = int(pa[1])
+		var bx: int = int(pb[0])
+		var by: int = int(pb[1])
+		if ay != by:
+			return ay < by
+		return ax < bx)
+	var removed_count: int = 0
+	for k in removed_keys:
+		var cc: Coord = to_remove[k]
+		var cell: Cell = board.cell_at(cc)
+		if cell == null or not cell.is_piece():
+			continue
+		removed_count += 1
+		if removed_count > MAX_REMOVES_PER_CYCLE:
+			push_error("resolve: cycle removed too many cells; possible bug")
+			return removed_count
+		var piece_kind: int = cell.piece.kind_id
+		board.set_empty(cc)
+		result.events.append(DomainEvent.new(
+			EventKind.REMOVE, [cc], piece_kind, cascade_index))
 	return removed_count
 
 # ----------------------------------------------------------------------------
@@ -250,6 +350,11 @@ static func _would_form_run(board: Board, coord: Coord, kind: int) -> bool:
 ## A single domain event. Stored in order in the event log returned
 ## by `resolve`. Uses plain types so the log can be serialised to
 ## JSON for replay, telemetry, or animation timelines.
+##
+## Step 13 adds `special_kind` (SpecialKind enum, -1 for non-special
+## events), `special_origin` (Coord of the special for SPECIAL_CREATE /
+## SPECIAL_ACTIVATE, null otherwise), and `cleared` (Array of Coords,
+## only set on SPECIAL_ACTIVATE).
 class DomainEvent:
 	var kind: int = 0
 	## Coordinates relevant to the event. For REMOVE and SPAWN this
@@ -260,35 +365,63 @@ class DomainEvent:
 	var piece_kind_id: int = -1
 	## Cascade cycle index (0-based). -1 if not part of a cascade.
 	var cascade: int = -1
+	## SpecialKind (SugartrailBoard.SpecialKind). -1 for non-special
+	## events. Set on SPECIAL_CREATE and SPECIAL_ACTIVATE.
+	var special_kind: int = -1
+	## Coord of the special being created or activated. null when
+	## the event is not a special event.
+	var special_origin: Coord = null
+	## Cells cleared by an activation. Empty for non-activate events.
+	var cleared: Array = []
 
 	func _init(p_kind: int, p_coords: Array = [],
-			p_piece_kind_id: int = -1, p_cascade: int = -1) -> void:
+			p_piece_kind_id: int = -1, p_cascade: int = -1,
+			p_special_kind: int = -1, p_special_origin: Coord = null,
+			p_cleared: Array = []) -> void:
 		kind = p_kind
 		coords = p_coords
 		piece_kind_id = p_piece_kind_id
 		cascade = p_cascade
+		special_kind = p_special_kind
+		special_origin = p_special_origin
+		cleared = p_cleared
 
 	func to_dict() -> Dictionary:
 		var coords_out: Array = []
 		for c in coords:
 			var cc: Coord = c
 			coords_out.append(cc.to_dict())
+		var cleared_out: Array = []
+		for c in cleared:
+			var cc: Coord = c
+			cleared_out.append(cc.to_dict())
 		return {
 			"kind": kind,
 			"coords": coords_out,
 			"piece_kind_id": piece_kind_id,
 			"cascade": cascade,
+			"special_kind": special_kind,
+			"special_origin": null if special_origin == null else special_origin.to_dict(),
+			"cleared": cleared_out,
 		}
 
 	func _to_debug_string() -> String:
-		var names := ["REMOVE", "MOVE", "SPAWN", "CASCADE_START", "CASCADE_END"]
+		var names := ["REMOVE", "MOVE", "SPAWN", "CASCADE_START", "CASCADE_END",
+				"SPECIAL_CREATE", "SPECIAL_ACTIVATE"]
 		var name: String = names[kind] if kind >= 0 and kind < names.size() else "UNKNOWN"
 		var coord_strs: Array = []
 		for c in coords:
 			var cc: Coord = c
 			coord_strs.append(cc._to_debug_string())
-		return "[%s cascade=%d] kind=%d coords=%s" % [
-			name, cascade, piece_kind_id, str(coord_strs)
+		var extra: String = ""
+		if special_kind >= 0:
+			extra = " special=%d origin=%s cleared=%d" % [
+				special_kind,
+				"(null)" if special_origin == null else special_origin._to_debug_string(),
+				cleared.size()
+			]
+		return "[%s cascade=%d] kind=%d coords=%s%s" % [
+			name, cascade, piece_kind_id, str(coord_strs), extra
 		]
 
 ## Result of one resolution cycle (find + remove + gravity + refill).

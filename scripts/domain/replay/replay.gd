@@ -58,10 +58,22 @@ static func has_legal_moves(board: Board) -> bool:
 ## must not change). After reshuffle, the board has at least one legal
 ## move and no immediate matches.
 ##
+## Step 13: reshuffle refuses to operate when specials exist on the
+## board. Reshuffle preserves per-kind piece counts and assumes every
+## piece is a normal Piece; specials carry a kind_id but their
+## activation semantics cannot be reshuffled. Newly generated levels
+## never start with specials, so this precondition is satisfied in
+## practice. Callers that violate this are bugs.
+##
 ## Returns true on success. Returns false (after the safety budget
 ## has been exhausted) when no legal move can be arranged; callers
 ## should treat this as a level-design error, not a runtime fault.
 static func reshuffle(board: Board, rng: Rng) -> bool:
+	# Step 13 precondition: no specials on the board.
+	for cell in board._cells:
+		if cell.is_piece() and cell.piece is Board.SpecialPiece:
+			push_error("reshuffle: refuses to operate while specials exist on the board")
+			return false
 	# Step 1: collect every piece coord and kind.
 	var piece_cells: Array = []
 	var kind_counts: Dictionary = {}
@@ -256,7 +268,9 @@ static func replay(log: ActionLog, expected_engine_version: String) -> ReplayRes
 				result.last_error_message = "illegal swap (%s, %s) at action %d" % [
 					a.a._to_debug_string(), a.b._to_debug_string(), i]
 				return result
-			var cascade: Resolution.CascadeResult = Resolution.resolve(board, rng)
+			# Step 13: pass the swap coords to resolution so special-piece
+			# creation can honour the swap-cell-precedence rule.
+			var cascade: Resolution.CascadeResult = Resolution.resolve(board, rng, a.a, a.b)
 			total_events += cascade.events.size()
 		i += 1
 	# Compare against expected engine version.
@@ -284,6 +298,8 @@ static func _compute_result_hash(board: Board, rng_state: int, total_events: int
 	return h
 
 ## Restore a SugartrailBoard from its to_snapshot() representation.
+## Step 13: cells with a "special" key reconstruct a SpecialPiece
+## carrying the same SpecialKind / orientation / needs_activation.
 static func _board_from_snapshot(snap: Dictionary) -> Board:
 	var w: int = int(snap.get("width", 0))
 	var h: int = int(snap.get("height", 0))
@@ -302,7 +318,12 @@ static func _board_from_snapshot(snap: Dictionary) -> Board:
 		var c := Coord.new(int(entry.get("x", 0)), int(entry.get("y", 0)))
 		if kind == CellKind.PIECE:
 			var piece_kind: int = int(entry.get("piece_kind_id", 0))
-			board.set_piece(c, Piece.new(piece_kind))
+			if entry.has("special"):
+				var sp := Board.SpecialPiece.new(
+					piece_kind, Board.Special.from_dict(entry["special"]))
+				board.set_piece(c, sp)
+			else:
+				board.set_piece(c, Piece.new(piece_kind))
 		# EMPTY cells stay EMPTY (default), BLOCKED stays BLOCKED.
 	return board
 

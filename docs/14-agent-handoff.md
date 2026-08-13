@@ -34,10 +34,10 @@ record the answer in `decisions.md` and `work-log.md`.
 ## Current execution state
 
 - Current phase: Phase C, First Playable Product Slice.
-- Current step: Step 12.
-- Step status: Steps 01-12 Complete (Step 12 APK build blocked by generic Godot 4.3 export error; substitute baseline captured by `scripts/presentation/vertical_slice/vertical_slice_smoke.gd`).
-- Last completed step: Step 12 (vertical slice validated via headless smoke profile; deterministic STEP12_* metrics).
-- Next action: execute Step 13 — implement special-piece creation and activation. Re-attempt APK export when a non-headless Godot editor is available or when a fix to the underlying configuration error surfaces.
+- Current step: Step 14.
+- Step status: Steps 01-13 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
+- Last completed step: Step 13 (special-piece creation and activation with deterministic precedence; 40 new fixtures; engine bumped to 0.2.0).
+- Next action: execute Step 14 — implement all special-piece combinations (combo activation rules and stable effect ordering).
 
 ## Build, test, and verification commands
 

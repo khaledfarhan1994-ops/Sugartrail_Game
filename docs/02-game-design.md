@@ -32,6 +32,41 @@ piece families. Special creation rules must be explicit and testable:
 - T or L shape: area clearer.
 - Special plus special: documented combo effect with a fixed order of operations.
 
+### 3.1 Special creation precedence (Step 13)
+
+When more than one match shape overlaps in the same cycle, the higher-priority
+shape wins and lower-priority shapes are downgraded to plain clears:
+
+| Priority | Match shape                         | Special created     | Cell chosen                                              |
+|----------|-------------------------------------|---------------------|----------------------------------------------------------|
+| 3 (top)  | 5-in-a-line (H or V)                | Color bomb          | Centre cell of the run (lex middle).                     |
+| 2        | 4-in-a-line (H or V)                | Striped (row or col)| Swap cell if inside the run, else the run's centre cell. |
+| 1        | T or L (3 + 3 sharing exactly 1 cell) | Area clearer     | The shared intersection cell.                            |
+| 0        | 3-in-a-line                          | (none)             | n/a                                                      |
+
+When a 5-run is present, all 4-runs and T/L shapes in the same cycle become
+plain clears (only the color bomb is created). When a 4-run and a T/L share
+the same intersection cell, the 4-run wins and the T/L is downgraded.
+
+### 3.2 Activation effects
+
+Each special has a deterministic activation effect applied the cycle it is
+created (or, for swap-triggered activations, the cycle the player swaps it
+into a match):
+
+| Special       | Effect                                                                                       |
+|---------------|----------------------------------------------------------------------------------------------|
+| Striped row   | Clears every cell in the special's row (blocked cells excluded).                             |
+| Striped col   | Clears every cell in the special's column.                                                   |
+| Color bomb    | Clears every piece on the board whose kind_id matches the bomb's normal kind_id.             |
+| Area          | Clears the 3x3 box centred on the special; clipped at the board edge; blocked cells excluded.|
+
+### 3.3 Special plus special
+
+Reserved for Step 14. Special+special swap combinations follow a fixed order
+of operations and add additional cleared cells on top of the regular activation
+effects.
+
 Specials must have readable previews, distinct audio, and reduced-motion behavior.
 
 ## 4. Objectives and blockers

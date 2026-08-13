@@ -335,7 +335,7 @@ References: `07-quality-strategy.md`, `10-traceability-acceptance.md`.
 
 ### Step 13: Implement special-piece creation and activation
 
-Status: Not started
+Status: Complete
 
 Goal: Add line, area, and color-clearing specials with deterministic precedence.
 
@@ -348,9 +348,24 @@ Work:
 
 Acceptance:
 
-- Fixtures cover every orientation, overlap, chain, edge, and cascade-created special.
-- Special placement and activation are deterministic.
-- Rule documentation matches tested behavior.
+- Fixtures cover every orientation, overlap, chain, edge, and cascade-created special. **Status: PASS. 40 new fixtures across `tests/unit/test_specials_data.gd`, `tests/unit/test_specials_activation.gd`, and `tests/unit/test_specials_integration.gd`. Covers 4-line horizontal/vertical striped (with swap-cell vs centre precedence), 5-line horizontal/vertical color bomb, T/L area clearer, all four activation effects (row, col, color, area, edge clipping, blocked-cell respect), swap-triggered activation, the precedence rules 5 > 4 > T/L, snapshot roundtrip and hash difference, replay determinism with specials, engine-version bump, and resolution-pipeline integration.**
+- Special placement and activation are deterministic. **Status: PASS. `test_special_creation_is_deterministic` and `test_replay_with_specials_is_deterministic` assert byte-for-byte equal hash across two identical runs.**
+- Rule documentation matches tested behavior. **Status: PASS. `docs/02-game-design.md` §3.1 (precedence table) and §3.2 (activation table) document the exact behavior the fixtures enforce.**
+
+Implementation summary:
+
+- `scripts/domain/rules/specials.gd` (new): SugartrailSpecials with `SpecialKind` enum (NONE / STRIPED_ROW / STRIPED_COL / COLOR_BOMB / AREA), `CreationPlan`, `detect_special_creations` (precedence-aware), `apply_creations`, `activate`, `activate_all`. Pure helpers for row/col/colour/area clear lists. The 5 > 4 > T/L precedence is enforced inside the planner; when a 5-run exists, 4-runs and T/L shapes in the same cycle downgrade to plain clears. When a 4-run and a T/L share a cell, the 4-run wins.
+- `scripts/domain/board/board.gd` extended: `Special` and `SpecialPiece` inner classes (sibling of `Piece` so every existing `piece.kind_id` read keeps working); `Cell.piece` retyped to Variant so it can hold either class; `to_snapshot` and `snapshot_hash` fold in special metadata when present; `_to_debug_string` annotates special cells.
+- `scripts/domain/rules/resolution.gd` extended: `EventKind` gains `SPECIAL_CREATE = 5` and `SPECIAL_ACTIVATE = 6`; `DomainEvent` gains `special_kind`, `special_origin`, `cleared`; per cycle the event log is `SPECIAL_CREATE → SPECIAL_ACTIVATE → REMOVE → MOVE → SPAWN`. `_resolve_cycle` now detects + applies + activates specials before removing cells. `resolve(..., swap_a, swap_b)` threads the player action through to the planner so swap-cell precedence is honoured on the first cycle.
+- `scripts/domain/replay/replay.gd` extended: replay passes the swap coords to `Resolution.resolve`; `_board_from_snapshot` reconstructs SpecialPiece from the snapshot's `special` key; `reshuffle` gains a precondition that refuses to operate when specials exist (Step 14 territory).
+- `scripts/domain/sugartrail_version.gd`: bumped `ENGINE_MINOR` 1 → 2 (engine 0.2.0). `tests/unit/test_replay.gd` updated `0.1.0-test` → `0.2.0-test` so the existing version-gate fixture remains valid; the `0.1.0-old` vs `0.2.0-new` mismatch test still asserts the version-mismatch path.
+- `tests/unit/test_specials_*.gd`: 40 new fixtures split across 3 files to keep each script under gdlint's 20-public-method cap.
+
+Verification (Step 13):
+
+- `bash tools/build/test.sh` → 145/145 passing, 2911 asserts in ~6s.
+- `tools/build/godot/godot --headless --path . res://scenes/vertical_slice/vertical_slice_smoke.tscn` → Step 12 baseline still wins in 679 ms (unchanged — specials are not created at level start; the test exercises the no-special path).
+- `gdlint scripts/ tests/` → 5 errors total, 1 new (same family as the 4 pre-existing Step 05-06 errors; both are enum-after-class ordering which is out of scope for this step).
 
 References: `02-game-design.md`, `07-quality-strategy.md`.
 

@@ -61,6 +61,20 @@ enum CellKind {
 	BLOCKED = 2,
 }
 
+## Special kinds. NONE is the default for normal pieces; the other
+## values describe special-piece behaviour (see docs/02-game-design.md
+## §3 and the Step 13 design plan).
+##
+## Step 13 implements creation + activation. Step 14 adds
+## special+special combos.
+enum SpecialKind {
+	NONE = 0,         # normal piece
+	STRIPED_ROW = 1,  # 4-in-a-row horizontal; clears its row when activated
+	STRIPED_COL = 2,  # 4-in-a-row vertical; clears its column when activated
+	COLOR_BOMB = 3,   # 5-in-a-line; clears all pieces of its kind_id when activated
+	AREA = 4,         # T or L shape; clears a 3x3 box (clipped) when activated
+}
+
 ## Piece kind ID. Pieces 0..MAX_PIECE_TYPES-1 are normal pieces.
 ## Special pieces arrive in Step 13 (id range reserved there).
 class Piece:
@@ -72,6 +86,74 @@ class Piece:
 	func is_equal_to(other: Piece) -> bool:
 		return other != null and kind_id == other.kind_id
 
+## Special metadata that rides along with a piece. A normal Piece has
+## no Special; a SpecialPiece carries both a normal kind_id and a
+## Special payload.
+class Special:
+	var kind: int = SpecialKind.NONE
+	## Axis hint for striped specials. 0 = horizontal (unused for
+	## non-striped specials), 1 = vertical (unused for non-striped).
+	var orientation: int = 0
+	## When false (the Step 13 default for newly created specials),
+	## the special detonates the cycle it is created. Reserved for
+	## Step 14 where some specials require a separate swap/match to
+	## activate.
+	var needs_activation: bool = false
+
+	func _init(p_kind: int = SpecialKind.NONE, p_orientation: int = 0, p_needs_activation: bool = false) -> void:
+		kind = p_kind
+		orientation = p_orientation
+		needs_activation = p_needs_activation
+
+	func is_special() -> bool:
+		return kind != SpecialKind.NONE
+
+	func is_normal() -> bool:
+		return kind == SpecialKind.NONE
+
+	func to_dict() -> Dictionary:
+		return {
+			"kind": kind,
+			"orientation": orientation,
+			"needs_activation": needs_activation,
+		}
+
+	static func from_dict(d: Dictionary) -> Special:
+		return Special.new(
+			int(d.get("kind", SpecialKind.NONE)),
+			int(d.get("orientation", 0)),
+			bool(d.get("needs_activation", false)))
+
+## A piece that carries special metadata. SpecialPiece is the value
+## stored in Cell.piece for cells that became specials via Step 13+
+## creation rules. Existing reads of `piece.kind_id` continue to work
+## because SpecialPiece exposes `kind_id` (the normal palette kind the
+## special represents — same field semantics as Piece).
+class SpecialPiece:
+	var kind_id: int = 0
+	var special: Special = Special.new()
+
+	func _init(p_kind_id: int = 0, p_special: Special = null) -> void:
+		kind_id = p_kind_id
+		special = p_special if p_special != null else Special.new()
+
+	func is_special() -> bool:
+		return special != null and special.is_special()
+
+	func is_normal() -> bool:
+		return not is_special()
+
+	func to_dict() -> Dictionary:
+		return {
+			"kind_id": kind_id,
+			"special": special.to_dict(),
+		}
+
+	static func from_dict(d: Dictionary) -> SpecialPiece:
+		var spec_d: Dictionary = d.get("special", {})
+		var spec: Special = Special.from_dict(spec_d)
+		return SpecialPiece.new(int(d.get("kind_id", 0)), spec)
+
 # ----------------------------------------------------------------------------
 # Cell
 # ----------------------------------------------------------------------------
@@ -79,9 +161,14 @@ class Piece:
 class Cell:
 	var coord: CellCoord
 	var kind: int = CellKind.EMPTY
-	var piece: Piece = null
+	## The cell's piece, if any. Either a normal Piece or a
+	## SpecialPiece (Step 13+). The field is intentionally Variant
+	## so a single cell can hold either; callers should treat
+	## `is_piece()` as the primary predicate and check
+	## `piece is SpecialPiece` when special semantics matter.
+	var piece = null
 
-	func _init(c: CellCoord = null, p_kind: int = CellKind.EMPTY, p_piece: Piece = null) -> void:
+	func _init(c: CellCoord = null, p_kind: int = CellKind.EMPTY, p_piece = null) -> void:
 		coord = c if c != null else CellCoord.new(0, 0)
 		kind = p_kind
 		piece = p_piece
@@ -97,7 +184,14 @@ class Cell:
 
 	func _to_debug_string() -> String:
 		if is_piece():
-			return "%s=piece(%d)" % [coord._to_debug_string(), piece.kind_id]
+			var tag: String = "piece"
+			if piece is SpecialPiece:
+				var sp: SpecialPiece = piece
+				var spec: Special = sp.special
+				var names := ["NORMAL", "STRIPED_ROW", "STRIPED_COL", "COLOR_BOMB", "AREA"]
+				var nm: String = names[spec.kind] if spec.kind >= 0 and spec.kind < names.size() else "?"
+				tag = "special(%s,k%d)" % [nm, sp.kind_id]
+			return "%s=%s(%d)" % [coord._to_debug_string(), tag, piece.kind_id]
 		elif is_blocked():
 			return "%s=blocked" % coord._to_debug_string()
 		return "%s=empty" % coord._to_debug_string()
@@ -182,7 +276,9 @@ func cell_at(c: CellCoord) -> Cell:
 		return null
 	return _cells[_index(c.x, c.y)]
 
-func set_piece(c: CellCoord, piece: Piece) -> void:
+func set_piece(c: CellCoord, piece) -> void:
+	# `piece` is intentionally untyped so callers can pass either a
+	# normal Piece or a SpecialPiece. Both must expose `kind_id`.
 	assert(in_bounds(c.x, c.y), "set_piece out of bounds: %s" % c._to_debug_string())
 	var cell: Cell = _cells[_index(c.x, c.y)]
 	assert(cell.kind != CellKind.BLOCKED, "set_piece into a BLOCKED cell: %s" % c._to_debug_string())
@@ -244,12 +340,18 @@ func validate() -> bool:
 ## Snapshot is a deep, deterministic Dictionary representation of the
 ## board. Two boards with the same config and cell contents produce
 ## identical snapshots (modulo iteration order, which is stable).
+##
+## Cells holding a SpecialPiece gain a "special" key (SpecialKind +
+## orientation) so a snapshot roundtrips the special metadata.
 func to_snapshot() -> Dictionary:
 	var cells_array: Array = []
 	for cell in _cells:
 		var entry: Dictionary = {"x": cell.coord.x, "y": cell.coord.y, "kind": cell.kind}
 		if cell.piece != null:
 			entry["piece_kind_id"] = cell.piece.kind_id
+			if cell.piece is SpecialPiece:
+				var sp: SpecialPiece = cell.piece
+				entry["special"] = sp.special.to_dict()
 		cells_array.append(entry)
 	return {
 		"width": config.width,
@@ -259,6 +361,8 @@ func to_snapshot() -> Dictionary:
 	}
 
 ## Stable hash of the snapshot. Used by replay comparators.
+## The hash folds in the special kind + orientation so two boards
+## that differ only by which cells hold specials replay distinctly.
 func snapshot_hash() -> int:
 	# Cheap deterministic fold; collisions are acceptable for replay
 	# comparisons because the snapshot itself is the truth.
@@ -270,4 +374,10 @@ func snapshot_hash() -> int:
 		h = (h * 31 + cell.kind) & 0xFFFFFFFF
 		if cell.piece != null:
 			h = (h * 31 + cell.piece.kind_id) & 0xFFFFFFFF
+			if cell.piece is SpecialPiece:
+				var sp: SpecialPiece = cell.piece
+				h = (h * 31 + sp.special.kind) & 0xFFFFFFFF
+				h = (h * 31 + sp.special.orientation) & 0xFFFFFFFF
+				if sp.special.needs_activation:
+					h = (h * 31 + 1) & 0xFFFFFFFF
 	return h
