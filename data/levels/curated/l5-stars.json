@@ -1,0 +1,21 @@
+{
+  "recipe_id": "l5-stars",
+  "version": 1,
+  "chapter": 0,
+  "index_in_chapter": 4,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 6,
+  "seed": 505,
+  "moves": 18,
+  "target_kind": 4,
+  "target_total": 14,
+  "star_one": 70,
+  "star_two": 160,
+  "star_three": 280,
+  "intro_text": "",
+  "tutorial": [
+    "tutorial.prompt.objective"
+  ],
+  "avoid_initial_matches": true
+}

@@ -34,10 +34,10 @@ record the answer in `decisions.md` and `work-log.md`.
 ## Current execution state
 
 - Current phase: Phase C, First Playable Product Slice.
-- Current step: Step 10.
-- Step status: Steps 01-09 Complete; Step 10 in progress.
-- Last completed step: Step 09 (board presentation and input layer).
-- Next action: execute Step 10 — level session, basic objective, and scoring shell.
+- Current step: Step 12.
+- Step status: Steps 01-11 Complete; Step 12 not started.
+- Last completed step: Step 11 (first ten curated levels and tutorial).
+- Next action: execute Step 12 — build the APK and validate the vertical slice on Android.
 
 ## Build, test, and verification commands
 
@@ -48,14 +48,19 @@ record the answer in `decisions.md` and `work-log.md`.
 - Disk gate: `./tools/build/disk-gate.sh`
 - Android build: `./tools/build/build-android.sh`
 
-## Domain layer snapshot (after Step 08)
+## Domain layer snapshot (after Step 11)
 
 - `scripts/domain/board/board.gd` — SugartrailBoard, CellCoord, CellKind, Piece, Cell, BoardConfig.
 - `scripts/domain/rng/rng.gd` — SugartrailRng (splitmix64, 63-bit safe, 53-bit float, snapshot/restore).
 - `scripts/domain/rules/rules.gd` — SugartrailRules (orthogonal adjacency, bounds, find_runs, try_swap, enumerate_legal_swaps).
 - `scripts/domain/rules/resolution.gd` — SugartrailResolution (resolve, gravity, refill, cascades; DomainEvent, CascadeResult).
 - `scripts/domain/replay/replay.gd` — SugartrailReplay (has_legal_moves, reshuffle, ActionLog, replay).
-- All 61 unit tests across 6 suites pass (2278 asserts in ~0.5s).
+- `scripts/domain/session/session.gd` — SugartrailSession (state machine, COLLECT_KIND objective, score, stars, retry, snapshot).
+- `scripts/domain/levels/level_recipe.gd` — SugartrailLevelRecipe (schema v1 validation, JSON load, with_defaults).
+- `scripts/domain/levels/level_loader.gd` — SugartrailLevelLoader (load_level, load_all_curated, has_opening_move).
+- `scripts/domain/tutorial/tutorial.gd` — SugartrailTutorial (Prompt, TutorialPack, Catalog, english).
+- `data/levels/curated/{l1..l10}-*.json` plus `INDEX.json` — ten data-driven levels.
+- All 105 unit tests across 9 suites pass (2653 asserts in ~6s).
 - Repository state: Git repository with the original commit `930bf27` plus the staged Step 01 + Step 02 changes. Step 02 added `tools/build/TOOLCHAIN.txt` (pinned Godot 4.3.stable, Java 17+, Android API 34 / Build-Tools 34.0.0 / Min API 26), `tools/build/{setup,verify,cleanup,disk-gate}.sh`, and installed Godot 4.3 stable, Android cmdline-tools, platform-tools, android-34, and build-tools 34.0.0 on disk under `tools/build/` (gitignored). Headless project import + headless boot scene both pass.
 
 ## Established commands
@@ -70,7 +75,7 @@ Only commands that have actually succeeded in this environment are listed.
 | Remove caches that are safe to regenerate | `tools/build/cleanup.sh` | 2026-08-13 — pass |
 | Headless project import | `tools/build/godot/godot --headless --import` | 2026-08-13 — pass |
 | Headless boot scene (1 frame) | `tools/build/godot/godot --headless --path . --quit-after 1 res://scenes/boot/boot.tscn` | 2026-08-13 — pass |
-| Run unit tests | `bash tools/test.sh` | 2026-08-13 — exit 0 with 3/3 passing; previously exit 2 when an intentional failure fixture was present |
+| Run unit tests | `bash tools/test.sh` | 2026-08-13 — exit 0, 105/105 passing; previously exit 2 when an intentional failure fixture was present |
 | Lint GDScript | `gdlint scripts/ tests/` | 2026-08-13 — pass |
 | One-shot CI run | `bash tools/ci.sh` | 2026-08-13 — pass (verify + disk + lint + tests) |
 

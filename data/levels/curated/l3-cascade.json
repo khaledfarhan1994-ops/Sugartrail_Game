@@ -1,0 +1,21 @@
+{
+  "recipe_id": "l3-cascade",
+  "version": 1,
+  "chapter": 0,
+  "index_in_chapter": 2,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 6,
+  "seed": 303,
+  "moves": 20,
+  "target_kind": 2,
+  "target_total": 10,
+  "star_one": 50,
+  "star_two": 120,
+  "star_three": 220,
+  "intro_text": "",
+  "tutorial": [
+    "tutorial.prompt.cascade"
+  ],
+  "avoid_initial_matches": true
+}

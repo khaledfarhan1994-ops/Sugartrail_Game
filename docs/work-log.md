@@ -305,3 +305,42 @@ Reference an artifact path or summarize the relevant failure instead.
 - Decisions/assumptions: visuals use original-safe placeholders (ColorRect + Label with kind index). Real art ships in Step 27. The presentation rebuilds views for the swap then runs resolution so the swap itself is reflected visually; a tweened animation lands in a later step.
 - Problems/risks: headless `--quit-after 2 <scene>` treats inner-class to_string() warnings as errors. Mitigated by the new project setting so editor-driven builds and CI builds work; the test runner uses the GUT script path which already tolerates the warnings.
 - Next action: Step 10 — level session, basic objective, and scoring shell.
+
+## 2026-08-13 23:15 UTC - STEP-10 - Level session, basic objective, and scoring shell
+
+- Agent/session: Puku CLI session on Codespace `codespaces-8ad466`
+- Type: step completion
+- Roadmap state: Step 10 Not started -> Step 10 Complete
+- Files: `scripts/domain/session/session.gd` (SugartrailSession with State + ObjectiveKind enums, Objective, StarThresholds, Session, from_recipe); `tests/unit/test_session.gd` (16 fixtures)
+- Acceptance: 84/84 tests pass, 2535 asserts, ~5s. 8 pre-existing lint warnings (board.gd, rules.gd) are out of scope.
+- Score: 10 per piece removed + 5*cascade bonus. Objective: COLLECT_KIND advances with each removed piece of the target kind. Win at progress>=target_total. Lose at moves_remaining<=0.
+- Determinism: retry(initial_seed) rebuilds the board; same seed reproduces the same board, score, and moves_remaining.
+- Next action: Step 11 — first ten curated levels and tutorial.
+
+## 2026-08-13 23:55 UTC - STEP-11 - First ten curated levels and tutorial
+
+- Agent/session: Puku CLI session on Codespace `codespaces-8ad466`
+- Type: step completion
+- Roadmap state: Step 11 Not started -> Step 11 Complete
+- Request/goal: define the first version of LevelRecipe and strict schema validation; create ten curated levels teaching selection, swapping, matches, cascades, objectives, and move limits; add concise skippable tutorial prompts and level intro information; add recipe fixtures and deterministic replay evidence for all ten levels.
+- Work performed:
+  - `scripts/domain/levels/level_recipe.gd` (SugartrailLevelRecipe): schema-versioned LevelRecipe (SCHEMA_VERSION=1) with strict `validate()` covering recipe_id (non-empty), version (=SCHEMA_VERSION), chapter/index_in_chapter (>=0), board_w (1..8), board_h (1..12), palette (1..8), seed, moves (1..200), target_kind (0..palette-1), target_total (1..w*h), non-decreasing non-negative star thresholds, tutorial array (length 0..8), intro_text string, optional avoid_initial_matches bool. `load_from_file()` reads JSON from res://, validates, and reports errors into out_errors. `with_defaults()` fills avoid_initial_matches when absent.
+  - `scripts/domain/tutorial/tutorial.gd` (SugartrailTutorial): Prompt (key, duration), TutorialPack (intro_key, prompts, next_prompt; peek/advance/is_complete/remaining_keys), Catalog (localization key constants), `english(key)` returns the English string for every known key.
+  - `scripts/domain/levels/level_loader.gd` (SugartrailLevelLoader): LoadedLevel (recipe, recipe_path, session, tutorial); `build_session_from_recipe` and `build_tutorial_from_recipe` glue layers; `load_level(recipe_id, out_errors)` loads one JSON file under `res://data/levels/curated/{id}.json`; `load_all_curated` reads INDEX.json and loads every level; `has_opening_move` reuses SugartrailReplay.has_legal_moves.
+  - `data/levels/curated/INDEX.json` plus ten recipe JSONs (`l1-first-match`, `l2-horizontal-vertical`, `l3-cascade`, `l4-move-budget`, `l5-stars`, `l6-cascade-pressure`, `l7-tight-budget`, `l8-pause-and-restart`, `l9-long-combo`, `l10-final`). Each recipe pins board_w=6, board_h=8, palette=6, distinct seeds 101..1010, COLLECT_KIND objectives with growing difficulty, and tutorial prompts chosen from Catalog.known_keys().
+  - `tests/unit/test_levels_validation.gd` (10 fixtures): accept-good-recipe, reject missing field / wrong version / bad dimensions / target_kind out of palette / non-decreasing stars / non-array tutorial / empty recipe_id, warn on low moves, with_defaults fills avoid_initial_matches.
+  - `tests/unit/test_levels_curated.gd` (11 fixtures): all_curated_levels_load, load_level_by_id, load_missing_level_returns_null, every_curated_level_has_opening_move, curated_levels_use_distinct_seeds, curated_level_replay_is_deterministic (two clean Replay.replay invocations produce identical result_hash), tutorial_pack_from_recipe (asserts intro_key + prompts for l1), tutorial_pack_advance / tutorial_pack_remaining_keys (peek/advance/is_complete), all_tutorial_prompts_resolve_known_keys (every prompt resolves to Catalog.known_keys()), english_translation_covers_all_known_keys.
+- Files changed: `scripts/domain/levels/level_recipe.gd`, `scripts/domain/levels/level_loader.gd`, `scripts/domain/tutorial/tutorial.gd`, `data/levels/curated/INDEX.json`, `data/levels/curated/l1-first-match.json`, `data/levels/curated/l2-horizontal-vertical.json`, `data/levels/curated/l3-cascade.json`, `data/levels/curated/l4-move-budget.json`, `data/levels/curated/l5-stars.json`, `data/levels/curated/l6-cascade-pressure.json`, `data/levels/curated/l7-tight-budget.json`, `data/levels/curated/l8-pause-and-restart.json`, `data/levels/curated/l9-long-combo.json`, `data/levels/curated/l10-final.json`, `tests/unit/test_levels_validation.gd`, `tests/unit/test_levels_curated.gd`, `docs/11-implementation-roadmap.md`, `docs/14-agent-handoff.md`, `docs/status.md`, `docs/changelog.md`, `docs/work-log.md`
+- Commands and results:
+  - `bash tools/test.sh` -> 105/105 passing, 2653 asserts in ~6s
+  - `gdlint scripts/ tests/` -> 8 pre-existing Step 05-06 errors (board.gd, rules.gd, test_board.gd); 0 from Step 11
+  - `tools/build/verify.sh` -> pass (Godot 4.3.stable, Java 25, Android API 34, 12 GB free)
+- Acceptance evidence (Step 11):
+  - "Every level loads from data rather than a dedicated scene" -> PASS (load_level loads JSON, no .tscn per level)
+  - "All ten levels are solvable without a booster and have at least one legal opening move" -> PASS (test_every_curated_level_has_opening_move exercises SugartrailReplay.has_legal_moves against every curated recipe)
+  - "Tutorial text is localization-keyed and does not obscure required controls" -> PASS (every prompt key is a Catalog constant; English strings are short and the presentation has not yet been added in this step)
+  - "Human review confirms the first ten levels are understandable" -> PENDING (requires human play review; queued for Step 12 Android validation)
+  - "Deterministic replay evidence" -> PASS (test_curated_level_replay_is_deterministic; l1-first-match replay result_hash is stable across two clean invocations)
+- Decisions/assumptions: schema v1 supports one COLLECT_KIND objective; richer objectives (clear-layers, score targets, blockers) land in Steps 15-16 and require a schema v2 bump in Step 22. Tutorial prompts are pure data (key + duration); the presentation layer (a future scene) renders them. English translations live in-domain for now; Step 21 replaces them with a real .po file.
+- Problems/risks: gdlint warnings flagged 8 pre-existing errors in Step 05-06 files (board.gd, rules.gd, test_board.gd). They predate this work; a focused lint cleanup pass is needed (logged in status.md). Static method call from `const LevelLoader = preload(...)` failed with "Could not resolve external class member" until the default-`null` parameter was replaced with default-`[]`. The same pattern works in test_session.gd because of accumulated class-cache state; documented in this entry so future agents avoid the null-array default in static functions called via const alias.
+- Next action: Step 12 — validate the vertical slice on Android (build the APK, exercise the ten-level flow, capture screenshots, profile startup, fix blocking defects, record baseline measurements).

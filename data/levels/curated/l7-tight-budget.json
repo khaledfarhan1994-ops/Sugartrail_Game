@@ -1,0 +1,22 @@
+{
+  "recipe_id": "l7-tight-budget",
+  "version": 1,
+  "chapter": 0,
+  "index_in_chapter": 6,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 6,
+  "seed": 707,
+  "moves": 12,
+  "target_kind": 0,
+  "target_total": 14,
+  "star_one": 80,
+  "star_two": 180,
+  "star_three": 320,
+  "intro_text": "",
+  "tutorial": [
+    "tutorial.prompt.move_limit",
+    "tutorial.prompt.retry"
+  ],
+  "avoid_initial_matches": true
+}

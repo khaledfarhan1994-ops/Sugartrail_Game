@@ -1,0 +1,22 @@
+{
+  "recipe_id": "l4-move-budget",
+  "version": 1,
+  "chapter": 0,
+  "index_in_chapter": 3,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 6,
+  "seed": 404,
+  "moves": 14,
+  "target_kind": 3,
+  "target_total": 12,
+  "star_one": 60,
+  "star_two": 140,
+  "star_three": 250,
+  "intro_text": "",
+  "tutorial": [
+    "tutorial.prompt.move_limit",
+    "tutorial.prompt.objective"
+  ],
+  "avoid_initial_matches": true
+}

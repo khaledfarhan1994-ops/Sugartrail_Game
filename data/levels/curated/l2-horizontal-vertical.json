@@ -1,0 +1,21 @@
+{
+  "recipe_id": "l2-horizontal-vertical",
+  "version": 1,
+  "chapter": 0,
+  "index_in_chapter": 1,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 6,
+  "seed": 202,
+  "moves": 22,
+  "target_kind": 1,
+  "target_total": 8,
+  "star_one": 40,
+  "star_two": 100,
+  "star_three": 180,
+  "intro_text": "",
+  "tutorial": [
+    "tutorial.prompt.match"
+  ],
+  "avoid_initial_matches": true
+}

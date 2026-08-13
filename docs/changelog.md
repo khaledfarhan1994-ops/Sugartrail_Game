@@ -23,3 +23,7 @@ release behavior.
 - Step 08: Deadlock detection, deterministic reshuffle, replay. SugartrailReplay with has_legal_moves, reshuffle (Fisher-Yates preserving multiset), ActionLog + replay with stable result hash. 12 new unit tests. Total: 61/61 passing. Added gdlintrc allowing PascalCase type aliases.
 
 - Step 09: Board presentation and input layer. SugartrailGameplayView with portrait scene, state machine for input locking, swipe + tap-select input, domain-event-driven view updates, original-safe placeholder visuals. 7 new unit tests. Total: 68/68 passing. Added [gdscript] project section so editor-driven builds don't reject the to_string() override warning from domain inner classes.
+
+- Step 10: Level session, basic objective, scoring. SugartrailSession with State / ObjectiveKind enums, Objective, StarThresholds, Session, from_recipe. 16 new unit tests. Total: 84/84 passing.
+
+- Step 11: First ten curated levels and tutorial. SugartrailLevelRecipe (schema v1 with strict validation), SugartrailLevelLoader (JSON loader + opening-move check), SugartrailTutorial (Prompt, TutorialPack, Catalog, English strings). Ten data-driven recipe JSONs under `data/levels/curated/` (l1-first-match through l10-final) plus INDEX.json. 21 new unit tests split across test_levels_validation.gd and test_levels_curated.gd. Total: 105/105 passing.

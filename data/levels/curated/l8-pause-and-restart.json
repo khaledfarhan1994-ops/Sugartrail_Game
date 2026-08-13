@@ -1,0 +1,22 @@
+{
+  "recipe_id": "l8-pause-and-restart",
+  "version": 1,
+  "chapter": 0,
+  "index_in_chapter": 7,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 6,
+  "seed": 808,
+  "moves": 16,
+  "target_kind": 1,
+  "target_total": 16,
+  "star_one": 90,
+  "star_two": 200,
+  "star_three": 360,
+  "intro_text": "",
+  "tutorial": [
+    "tutorial.prompt.pause",
+    "tutorial.prompt.retry"
+  ],
+  "avoid_initial_matches": true
+}

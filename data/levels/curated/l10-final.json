@@ -1,0 +1,23 @@
+{
+  "recipe_id": "l10-final",
+  "version": 1,
+  "chapter": 0,
+  "index_in_chapter": 9,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 6,
+  "seed": 1010,
+  "moves": 22,
+  "target_kind": 3,
+  "target_total": 20,
+  "star_one": 110,
+  "star_two": 240,
+  "star_three": 450,
+  "intro_text": "",
+  "tutorial": [
+    "tutorial.prompt.objective",
+    "tutorial.prompt.cascade",
+    "tutorial.prompt.retry"
+  ],
+  "avoid_initial_matches": true
+}

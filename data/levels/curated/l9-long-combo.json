@@ -1,0 +1,21 @@
+{
+  "recipe_id": "l9-long-combo",
+  "version": 1,
+  "chapter": 0,
+  "index_in_chapter": 8,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 6,
+  "seed": 909,
+  "moves": 20,
+  "target_kind": 2,
+  "target_total": 18,
+  "star_one": 100,
+  "star_two": 220,
+  "star_three": 400,
+  "intro_text": "",
+  "tutorial": [
+    "tutorial.prompt.cascade"
+  ],
+  "avoid_initial_matches": true
+}

@@ -1,0 +1,22 @@
+{
+  "recipe_id": "l6-cascade-pressure",
+  "version": 1,
+  "chapter": 0,
+  "index_in_chapter": 5,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 6,
+  "seed": 606,
+  "moves": 16,
+  "target_kind": 5,
+  "target_total": 14,
+  "star_one": 70,
+  "star_two": 170,
+  "star_three": 300,
+  "intro_text": "",
+  "tutorial": [
+    "tutorial.prompt.cascade",
+    "tutorial.prompt.move_limit"
+  ],
+  "avoid_initial_matches": true
+}

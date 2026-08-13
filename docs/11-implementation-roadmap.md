@@ -241,7 +241,7 @@ References: `05-ux-accessibility.md`, `06-art-audio.md`.
 
 ### Step 10: Add level session, basic objective, and scoring shell
 
-Status: In progress
+Status: Complete
 
 Goal: Turn the board into a complete move-limited level session.
 
@@ -262,7 +262,7 @@ References: `02-game-design.md`, `05-ux-accessibility.md`.
 
 ### Step 11: Create the first ten curated levels and tutorial
 
-Status: Not started
+Status: Complete
 
 Goal: Produce a small vertical slice suitable for real play review.
 

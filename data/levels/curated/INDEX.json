@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "ids": [
+    "l1-first-match",
+    "l2-horizontal-vertical",
+    "l3-cascade",
+    "l4-move-budget",
+    "l5-stars",
+    "l6-cascade-pressure",
+    "l7-tight-budget",
+    "l8-pause-and-restart",
+    "l9-long-combo",
+    "l10-final"
+  ]
+}

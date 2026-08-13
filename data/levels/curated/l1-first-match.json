@@ -1,0 +1,23 @@
+{
+  "recipe_id": "l1-first-match",
+  "version": 1,
+  "chapter": 0,
+  "index_in_chapter": 0,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 6,
+  "seed": 101,
+  "moves": 25,
+  "target_kind": 0,
+  "target_total": 6,
+  "star_one": 30,
+  "star_two": 80,
+  "star_three": 150,
+  "intro_text": "tutorial.intro.first_level",
+  "tutorial": [
+    "tutorial.prompt.select",
+    "tutorial.prompt.swap",
+    "tutorial.prompt.match"
+  ],
+  "avoid_initial_matches": true
+}
