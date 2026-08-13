@@ -196,7 +196,7 @@ References: `02-game-design.md`, `03-technical-architecture.md`.
 
 ### Step 08: Add deadlock detection, deterministic reshuffle, and replay
 
-Status: Not started
+Status: Complete
 
 Goal: Guarantee recoverable playable states and reproducible bug reports.
 
@@ -219,7 +219,7 @@ References: `04-level-pipeline.md`, `07-quality-strategy.md`.
 
 ### Step 09: Build the board presentation and input layer
 
-Status: Not started
+Status: In progress
 
 Goal: Make the deterministic engine playable without coupling rules to visuals.
 

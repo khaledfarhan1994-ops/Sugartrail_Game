@@ -33,11 +33,11 @@ record the answer in `decisions.md` and `work-log.md`.
 
 ## Current execution state
 
-- Current phase: Phase B, Deterministic Game Core.
-- Current step: Step 07.
-- Step status: Steps 01-06 Complete; Step 07 in progress.
-- Last completed step: Step 06 (legal swaps and match detection).
-- Next action: execute Step 07 — resolution, gravity, refill, and cascades. Implement removing matched cells, gravity that respects blocked cells, deterministic refill from the seeded RNG, multi-step cascade resolution, and a domain event log describing removals, movements, spawns, and cascade depth. Cap cascades with a safety limit that fails loudly.
+- Current phase: Phase C, First Playable Product Slice.
+- Current step: Step 09.
+- Step status: Steps 01-08 Complete; Step 09 in progress.
+- Last completed step: Step 08 (deadlock detection, deterministic reshuffle, and replay).
+- Next action: execute Step 09 — board presentation and input layer.
 
 ## Build, test, and verification commands
 
@@ -48,12 +48,14 @@ record the answer in `decisions.md` and `work-log.md`.
 - Disk gate: `./tools/build/disk-gate.sh`
 - Android build: `./tools/build/build-android.sh`
 
-## Domain layer snapshot (after Step 06)
+## Domain layer snapshot (after Step 08)
 
 - `scripts/domain/board/board.gd` — SugartrailBoard, CellCoord, CellKind, Piece, Cell, BoardConfig.
 - `scripts/domain/rng/rng.gd` — SugartrailRng (splitmix64, 63-bit safe, 53-bit float, snapshot/restore).
 - `scripts/domain/rules/rules.gd` — SugartrailRules (orthogonal adjacency, bounds, find_runs, try_swap, enumerate_legal_swaps).
-- All 35 unit tests across 4 suites pass (2021 asserts in ~0.12s).
+- `scripts/domain/rules/resolution.gd` — SugartrailResolution (resolve, gravity, refill, cascades; DomainEvent, CascadeResult).
+- `scripts/domain/replay/replay.gd` — SugartrailReplay (has_legal_moves, reshuffle, ActionLog, replay).
+- All 61 unit tests across 6 suites pass (2278 asserts in ~0.5s).
 - Repository state: Git repository with the original commit `930bf27` plus the staged Step 01 + Step 02 changes. Step 02 added `tools/build/TOOLCHAIN.txt` (pinned Godot 4.3.stable, Java 17+, Android API 34 / Build-Tools 34.0.0 / Min API 26), `tools/build/{setup,verify,cleanup,disk-gate}.sh`, and installed Godot 4.3 stable, Android cmdline-tools, platform-tools, android-34, and build-tools 34.0.0 on disk under `tools/build/` (gitignored). Headless project import + headless boot scene both pass.
 
 ## Established commands
