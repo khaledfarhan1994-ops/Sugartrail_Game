@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Placeholder app icon for Sugartrail.
+  This is intentionally a flat-colour, simple-shape icon with no
+  copyrighted trade dress. It is replaced in Step 27 with the
+  production icon (licensed / original art). The only requirement
+  here is that the file exists so Godot's project settings can
+  resolve config/icon="res://assets/art/icon.svg" during import.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect x="0" y="0" width="64" height="64" rx="12" ry="12" fill="#F4B6C2"/>
+  <circle cx="22" cy="24" r="6" fill="#FFFFFF"/>
+  <circle cx="42" cy="24" r="6" fill="#FFFFFF"/>
+  <circle cx="32" cy="42" r="6" fill="#FFFFFF"/>
+</svg>
