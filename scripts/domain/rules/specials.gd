@@ -16,8 +16,12 @@ extends RefCounted
 ## shared intersection cell.
 ##
 ## All Step-13 specials detonate the cycle they are created
-## (`needs_activation = false`); the field is reserved for Step 14
-## where special+special combos land.
+## (`needs_activation = false`). Step 14 adds special+special
+## combinations: when the player swaps two cells both holding
+## SpecialPieces (without forming a 3-run), the swap is legal and the
+## resolution cycle runs `activate_combo` to clear the combined
+## effect. The combo cleared list is deduped and lex-sorted. See
+## docs/02-game-design.md §3.3 for the full 12-row matrix.
 ##
 ## Activation effects (per cycle, deduped, lex-ordered):
 ##
@@ -434,3 +438,288 @@ static func _area_cells(board: Board, center: Coord) -> Array:
 				continue
 			out.append(Coord.new(x, y))
 	return out
+
+static func _area_5x5_cells(board: Board, center: Coord) -> Array:
+	var out: Array = []
+	for dy in range(-2, 3):
+		for dx in range(-2, 3):
+			var x: int = center.x + dx
+			var y: int = center.y + dy
+			if x < 0 or x >= board.config.width:
+				continue
+			if y < 0 or y >= board.config.height:
+				continue
+			out.append(Coord.new(x, y))
+	return out
+
+# ----------------------------------------------------------------------------
+# Step 14: special + special combinations
+# ----------------------------------------------------------------------------
+
+## Descriptor for one combo. `cleared_fn` is a Callable that takes
+## the board and returns a deduped list of cleared cells. The kind
+## enum is kept on the descriptor for logging / event payload.
+class ComboSpec:
+	var a_kind: int = SpecialKind.NONE
+	var b_kind: int = SpecialKind.NONE
+	var result_kind: int = SpecialKind.NONE
+	var cleared_fn: Callable = Callable()
+
+	func _init(p_a: int, p_b: int, p_result: int, p_fn: Callable) -> void:
+		a_kind = p_a
+		b_kind = p_b
+		result_kind = p_result
+		cleared_fn = p_fn
+
+## Keying for the combinator table. Order-invariant: `[min, max]`
+## yields the same lookup as `[max, min]`.
+static func _combo_key(a: int, b: int) -> Array:
+	var lo: int = a
+	var hi: int = b
+	if lo > hi:
+		var tmp: int = lo
+		lo = hi
+		hi = tmp
+	return [lo, hi]
+
+## Build the static combinator table. Each entry maps a pair of
+## special kinds to the cleared-cell list produced by the swap.
+##
+## The table is keyed by `(min_kind, max_kind)` so the order of the
+## two input coords does not matter. Each entry's `cleared_fn`
+## receives the same 4-argument array `(row_origin, col_origin,
+## area_origin, bomb_origin)` regardless of swap direction; the
+## helper decides which cell is which based on which special kind
+## is paired with what.
+##
+## The closures inspect the passed kinds so they produce the same
+## cleared set regardless of which input cell is `a` and which is
+## `b`.
+static func _build_combo_table(board: Board, a_origin: Coord, b_origin: Coord,
+		a_kind: int, b_kind: int, a_kind_id: int, b_kind_id: int) -> Dictionary:
+	var table: Dictionary = {}
+	# Helper closures ----------------------------------------------------
+	# Striped-row at `coord` -> every cell in its row.
+	var row_strip := func(coord: Coord) -> Array:
+		return _strip_cells_row(board, coord.y)
+	# Striped-col at `coord` -> every cell in its column.
+	var col_strip := func(coord: Coord) -> Array:
+		return _strip_cells_col(board, coord.x)
+	# Area at `coord` -> 3x3 around it.
+	var area_3 := func(coord: Coord) -> Array:
+		return _area_cells(board, coord)
+	# Area+area -> 5x5 around each epicentre.
+	var area_5 := func(coord: Coord) -> Array:
+		return _area_5x5_cells(board, coord)
+	# Helpers that union two region lists.
+	var union := func(left: Array, right: Array) -> Array:
+		var seen: Dictionary = {}
+		var out: Array = []
+		for c in left:
+			var cc: Coord = c
+			var key: String = "%d,%d" % [cc.x, cc.y]
+			if seen.has(key):
+				continue
+			seen[key] = true
+			out.append(cc)
+		for c in right:
+			var cc2: Coord = c
+			var key2: String = "%d,%d" % [cc2.x, cc2.y]
+			if seen.has(key2):
+				continue
+			seen[key2] = true
+			out.append(cc2)
+		return out
+	# Helper: row of `row_origin` + col of `col_origin`.
+	var row_plus_col := func(row_origin: Coord, col_origin: Coord) -> Array:
+		return union.call(row_strip.call(row_origin), col_strip.call(col_origin))
+	# Helper: row + 3x3 when the row is at `row_origin` and the area
+	# is at `area_origin`.
+	var row_plus_area := func(row_origin: Coord, area_origin: Coord) -> Array:
+		return union.call(row_strip.call(row_origin), area_3.call(area_origin))
+	# Helper: col + 3x3.
+	var col_plus_area := func(col_origin: Coord, area_origin: Coord) -> Array:
+		return union.call(col_strip.call(col_origin), area_3.call(area_origin))
+	# Helper: each combo closure receives a stdcall dict with the
+	# resolved coords for each role. Closed-over helpers read the
+	# roles from this dict.
+	var make_dispatch := func(combo_fn: Callable) -> Callable:
+		# The combo_fn closure is given a Dictionary with the
+		# resolved coords for each special role. The closure then
+		# computes the cleared region.
+		return func() -> Array:
+			var roles: Dictionary = _resolve_roles(board, a_origin, b_origin,
+					a_kind, b_kind, a_kind_id, b_kind_id)
+			return combo_fn.call(roles)
+	# Combinator closures ------------------------------------------------
+	# Each combinator closure receives a `roles` dict with keys
+	# `row_origin`, `col_origin`, `area_origin`, `bomb_origin`,
+	# `bomb_kind_id` (any may be null when the combo doesn't involve
+	# that role). The closure returns the cleared list.
+	var c_striped_row_col := func(roles: Dictionary) -> Array:
+		return row_plus_col.call(roles["row_origin"], roles["col_origin"])
+	var c_striped_row_row := func(_roles: Dictionary) -> Array:
+		# Two rows. Union of both row strips.
+		var c1: Coord = a_origin
+		var c2: Coord = b_origin
+		return union.call(row_strip.call(c1), row_strip.call(c2))
+	var c_striped_col_col := func(_roles: Dictionary) -> Array:
+		var c1: Coord = a_origin
+		var c2: Coord = b_origin
+		return union.call(col_strip.call(c1), col_strip.call(c2))
+	var c_striped_row_bomb := func(roles: Dictionary) -> Array:
+		# Paint the row of the striped (clear every cell in the row).
+		return row_strip.call(roles["row_origin"])
+	var c_striped_col_bomb := func(roles: Dictionary) -> Array:
+		return col_strip.call(roles["col_origin"])
+	var c_striped_row_area := func(roles: Dictionary) -> Array:
+		return row_plus_area.call(roles["row_origin"], roles["area_origin"])
+	var c_striped_col_area := func(roles: Dictionary) -> Array:
+		return col_plus_area.call(roles["col_origin"], roles["area_origin"])
+	var c_area_area := func(_roles: Dictionary) -> Array:
+		return union.call(area_5.call(a_origin), area_5.call(b_origin))
+	var c_bomb_bomb := func(_roles: Dictionary) -> Array:
+		return board.all_piece_coords()
+	var c_bomb_area := func(roles: Dictionary) -> Array:
+		var bomb_kind_id: int = int(roles["bomb_kind_id"])
+		return union.call(_color_clear_cells(board, bomb_kind_id),
+				area_3.call(roles["area_origin"]))
+	# ------------------------------------------------------------------
+	table[_combo_key(SpecialKind.STRIPED_ROW, SpecialKind.STRIPED_COL)] = ComboSpec.new(
+		SpecialKind.STRIPED_ROW, SpecialKind.STRIPED_COL,
+		SpecialKind.STRIPED_ROW, make_dispatch.call(c_striped_row_col))
+	table[_combo_key(SpecialKind.STRIPED_ROW, SpecialKind.STRIPED_ROW)] = ComboSpec.new(
+		SpecialKind.STRIPED_ROW, SpecialKind.STRIPED_ROW,
+		SpecialKind.STRIPED_ROW, make_dispatch.call(c_striped_row_row))
+	table[_combo_key(SpecialKind.STRIPED_COL, SpecialKind.STRIPED_COL)] = ComboSpec.new(
+		SpecialKind.STRIPED_COL, SpecialKind.STRIPED_COL,
+		SpecialKind.STRIPED_COL, make_dispatch.call(c_striped_col_col))
+	table[_combo_key(SpecialKind.STRIPED_ROW, SpecialKind.COLOR_BOMB)] = ComboSpec.new(
+		SpecialKind.STRIPED_ROW, SpecialKind.COLOR_BOMB,
+		SpecialKind.COLOR_BOMB, make_dispatch.call(c_striped_row_bomb))
+	table[_combo_key(SpecialKind.STRIPED_COL, SpecialKind.COLOR_BOMB)] = ComboSpec.new(
+		SpecialKind.STRIPED_COL, SpecialKind.COLOR_BOMB,
+		SpecialKind.COLOR_BOMB, make_dispatch.call(c_striped_col_bomb))
+	table[_combo_key(SpecialKind.STRIPED_ROW, SpecialKind.AREA)] = ComboSpec.new(
+		SpecialKind.STRIPED_ROW, SpecialKind.AREA,
+		SpecialKind.AREA, make_dispatch.call(c_striped_row_area))
+	table[_combo_key(SpecialKind.STRIPED_COL, SpecialKind.AREA)] = ComboSpec.new(
+		SpecialKind.STRIPED_COL, SpecialKind.AREA,
+		SpecialKind.AREA, make_dispatch.call(c_striped_col_area))
+	table[_combo_key(SpecialKind.AREA, SpecialKind.AREA)] = ComboSpec.new(
+		SpecialKind.AREA, SpecialKind.AREA,
+		SpecialKind.AREA, make_dispatch.call(c_area_area))
+	table[_combo_key(SpecialKind.COLOR_BOMB, SpecialKind.COLOR_BOMB)] = ComboSpec.new(
+		SpecialKind.COLOR_BOMB, SpecialKind.COLOR_BOMB,
+		SpecialKind.COLOR_BOMB, make_dispatch.call(c_bomb_bomb))
+	table[_combo_key(SpecialKind.COLOR_BOMB, SpecialKind.AREA)] = ComboSpec.new(
+		SpecialKind.COLOR_BOMB, SpecialKind.AREA,
+		SpecialKind.COLOR_BOMB, make_dispatch.call(c_bomb_area))
+	return table
+
+## Resolve the per-role coords for a combo. Returns a Dictionary with
+## keys `row_origin`, `col_origin`, `area_origin`, `bomb_origin`,
+## `bomb_kind_id`. Any role not present in the combo is null.
+static func _resolve_roles(_board: Board, a_origin: Coord, b_origin: Coord,
+		a_kind: int, b_kind: int, a_kind_id: int, b_kind_id: int) -> Dictionary:
+	var roles: Dictionary = {
+		"row_origin": null,
+		"col_origin": null,
+		"area_origin": null,
+		"bomb_origin": null,
+		"bomb_kind_id": 0,
+	}
+	# Pair the kinds with the origins.
+	var pairs: Array = [[a_kind, a_origin, a_kind_id], [b_kind, b_origin, b_kind_id]]
+	for p in pairs:
+		var k: int = p[0]
+		var o: Coord = p[1]
+		var kid: int = p[2]
+		match k:
+			SpecialKind.STRIPED_ROW:
+				roles["row_origin"] = o
+			SpecialKind.STRIPED_COL:
+				roles["col_origin"] = o
+			SpecialKind.AREA:
+				roles["area_origin"] = o
+			SpecialKind.COLOR_BOMB:
+				roles["bomb_origin"] = o
+				roles["bomb_kind_id"] = kid
+	return roles
+
+## Look up the combinator spec for an (a, b) pair. Returns null when
+## the pair is not a supported combo.
+static func lookup_combo(board: Board, a_origin: Coord, b_origin: Coord,
+		a_kind: int, b_kind: int, a_kind_id: int, b_kind_id: int) -> ComboSpec:
+	var table: Dictionary = _build_combo_table(board, a_origin, b_origin,
+			a_kind, b_kind, a_kind_id, b_kind_id)
+	return table.get(_combo_key(a_kind, b_kind), null)
+
+## Compute the deduped, lex-sorted cleared list for a combo. Returns
+## an empty Array when the pair is unsupported.
+static func combo_clear(board: Board, a_origin: Coord, b_origin: Coord,
+		a_kind: int, b_kind: int, a_kind_id: int, b_kind_id: int) -> Array:
+	var spec: ComboSpec = lookup_combo(board, a_origin, b_origin,
+			a_kind, b_kind, a_kind_id, b_kind_id)
+	if spec == null:
+		return []
+	var raw: Array = spec.cleared_fn.call()
+	# Dedup by key, then keep lex-sorted order; the helper closures
+	# may already union, but a final pass guarantees the contract.
+	var seen: Dictionary = {}
+	var out: Array = []
+	for c in raw:
+		var cc: Coord = c
+		var key: String = "%d,%d" % [cc.x, cc.y]
+		if seen.has(key):
+			continue
+		seen[key] = true
+		out.append(cc)
+	# Filter blocked cells (preserves the existing single-special
+	# activation contract).
+	var filtered: Array = []
+	for c in out:
+		var cc2: Coord = c
+		var bc = board.cell_at(cc2)
+		if bc != null and not bc.is_blocked():
+			filtered.append(cc2)
+	filtered.sort_custom(func(a, b):
+		var ca: Coord = a
+		var cb: Coord = b
+		return Coord.compare(ca, cb))
+	return filtered
+
+## Activate a special+special combo. Returns a Dictionary with the
+## same shape as `activate`:
+##   {
+##     "kind": int (SpecialKind combo result kind),
+##     "center": Coord (the swap target epicentre; convention: a_origin),
+##     "color": int (bomb kind_id for COLOR_BOMB combos; 0 otherwise),
+##     "cleared": Array[Coord] (deduped, lex-sorted combo cleared cells),
+##     "swap_origin": Coord (the swap target cell set by the player),
+##   }
+##
+## The returned `cleared` list is the union of the combo's region
+## (deduped, lex-sorted). Blocked cells are excluded. The cleared
+## set is direction-invariant: swapping (a, b) yields the same set
+## as (b, a), because the dispatcher resolves each role by kind.
+static func activate_combo(board: Board, a_origin: Coord, b_origin: Coord,
+		a_kind: int, b_kind: int, a_kind_id: int, b_kind_id: int) -> Dictionary:
+	var cleared: Array = combo_clear(board, a_origin, b_origin,
+			a_kind, b_kind, a_kind_id, b_kind_id)
+	var spec: ComboSpec = lookup_combo(board, a_origin, b_origin,
+			a_kind, b_kind, a_kind_id, b_kind_id)
+	var result_kind: int = a_kind if spec == null else spec.result_kind
+	var color: int = 0
+	if result_kind == SpecialKind.COLOR_BOMB:
+		# Bomb's kind_id is whichever cell is the bomb.
+		var roles: Dictionary = _resolve_roles(board, a_origin, b_origin,
+				a_kind, b_kind, a_kind_id, b_kind_id)
+		color = int(roles.get("bomb_kind_id", 0))
+	return {
+		"kind": result_kind,
+		"center": a_origin,
+		"color": color,
+		"cleared": cleared,
+		"swap_origin": a_origin,
+	}

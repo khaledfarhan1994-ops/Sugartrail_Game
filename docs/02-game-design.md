@@ -61,11 +61,36 @@ into a match):
 | Color bomb    | Clears every piece on the board whose kind_id matches the bomb's normal kind_id.             |
 | Area          | Clears the 3x3 box centred on the special; clipped at the board edge; blocked cells excluded.|
 
-### 3.3 Special plus special
+### 3.3 Special plus special (Step 14)
 
-Reserved for Step 14. Special+special swap combinations follow a fixed order
-of operations and add additional cleared cells on top of the regular activation
-effects.
+When the player swaps two cells both holding SpecialPieces, the swap itself
+is the activation trigger and no 3-run is required. The cleared-cell list is
+the union of the two specials' activations, deduped and lex-sorted, with
+blocked cells excluded. The combo epicentre is the swap-target cell (the cell
+that was at `swap_a` after the player action). The combinator table is
+direction-invariant: swapping `(a, b)` produces the same cleared set as
+`(b, a)`.
+
+| Pair                               | Effect                                                                                              |
+|------------------------------------|-----------------------------------------------------------------------------------------------------|
+| STRIPED_ROW + STRIPED_COL          | Clear the row of the row-striped AND the column of the col-striped (deduped).                       |
+| STRIPED_ROW + STRIPED_ROW          | Clear both rows.                                                                                    |
+| STRIPED_COL + STRIPED_COL          | Clear both columns.                                                                                 |
+| STRIPED_ROW + COLOR_BOMB           | Clear every cell in the row of the striped (the bomb "paints" the row).                             |
+| STRIPED_COL + COLOR_BOMB           | Clear every cell in the column of the striped.                                                      |
+| STRIPED_ROW + AREA                 | Clear the row of the striped AND the 3x3 box centred on the area (deduped).                          |
+| STRIPED_COL + AREA                 | Clear the column of the striped AND the 3x3 box centred on the area (deduped).                      |
+| AREA + AREA                        | Clear a 5x5 box centred on each area (overlap deduped).                                             |
+| COLOR_BOMB + COLOR_BOMB            | Clear every piece on the board.                                                                     |
+| COLOR_BOMB + AREA                  | Clear every cell of the bomb's normal kind AND the 3x3 box centred on the area (deduped).           |
+
+SPECIAL + NORMAL is handled by Step 13 (swap-triggered activation): the swap
+still requires a 3-run, the matched special detonates, and a normal+special
+swap with no 3-run is rejected.
+
+The cycle's event log emits one `SPECIAL_ACTIVATE` event for the combo (with
+the cleared list as its payload), followed by `REMOVE` events in lex order,
+then `MOVE` events from gravity and `SPAWN` events from refill.
 
 Specials must have readable previews, distinct audio, and reduced-motion behavior.
 

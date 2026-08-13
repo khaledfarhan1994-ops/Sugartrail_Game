@@ -371,7 +371,7 @@ References: `02-game-design.md`, `07-quality-strategy.md`.
 
 ### Step 14: Implement all special-piece combinations
 
-Status: Not started
+Status: Complete
 
 Goal: Complete and freeze launch combo behavior before bulk level production.
 
@@ -383,9 +383,23 @@ Work:
 
 Acceptance:
 
-- A test matrix covers every supported pair in both swap directions where direction matters.
-- No combination leaves invalid cells or an unresolved state.
-- Replays remain stable after combo-heavy action sequences.
+- A test matrix covers every supported pair in both swap directions where direction matters. **Status: PASS. 10-row combinator matrix (STRIPED+STRIPED × 3, STRIPED+COLOR_BOMB × 2, STRIPED+AREA × 2, AREA+AREA, COLOR_BOMB+COLOR_BOMB, COLOR_BOMB+AREA) exercised across `tests/unit/test_combos.gd` (18 fixtures) and `tests/unit/test_combos_integration.gd` (7 fixtures). Direction invariance is checked via set equality on the lex-sorted cleared list (the cleared SET is identical regardless of swap order).**
+- No combination leaves invalid cells or an unresolved state. **Status: PASS. `Specials.combo_clear` dedupes, lex-sorts, and excludes blocked cells. `_apply_combo` emits REMOVE events in lex order; gravity + refill then run; cascades continue normally. The `test_resolution_runs_combo_for_special_plus_special` assertion verifies the board is fully restored to 36 pieces after the combo's settle phase.**
+- Replays remain stable after combo-heavy action sequences. **Status: PASS. `test_combo_replay_is_deterministic` runs two clean replays of a combo log and asserts identical `result_hash` and identical final board `snapshot_hash`. Engine version bumped to 0.3.0 so older logs fail with a tagged version-mismatch error.**
+
+Implementation summary:
+
+- `scripts/domain/rules/specials.gd`: added `ComboSpec` class, `_combo_key` (order-invariant `[min, max]`), `_build_combo_table`, `_resolve_roles`, `lookup_combo`, `combo_clear`, `activate_combo`. The dispatcher identifies each role (row_origin / col_origin / area_origin / bomb_origin / bomb_kind_id) by inspecting the kinds of the two input cells, so the combinator table is symmetric under swap direction. 10-row matrix covers every supported pair.
+- `scripts/domain/rules/rules.gd`: `try_swap` accepts a swap of two cells both holding SpecialPieces (no 3-run required); `enumerate_legal_swaps` includes combo swaps in its output and restores the board after each probe.
+- `scripts/domain/rules/resolution.gd`: high-level `resolve` runs a combo fast-path before the standard match-cascade loop when both swap cells hold SpecialPieces and the swap did not create a 3-run. `_apply_combo` emits a SPECIAL_ACTIVATE event with the combo cleared list, followed by REMOVE events in lex order, then CASCADE_START/gravity/refill/CASCADE_END. `result.cycles` includes the combo phase.
+- `scripts/domain/sugartrail_version.gd`: bumped `ENGINE_MINOR` 2 → 3 (engine 0.3.0). `tests/unit/test_replay.gd` updated `0.2.0-test` → `0.3.0-test`. The mismatch fixture was renamed `0.2.0-old` vs `0.3.0-new`.
+- `tests/unit/test_combos.gd` (new, 18 fixtures) + `tests/unit/test_combos_integration.gd` (new, 7 fixtures): data model + key normalisation, striped+striped combinations (H+H, V+V, H+V with direction invariance), striped+color bomb, striped+area, area+area 5x5, color bomb+color bomb, color bomb+area, `try_swap`/`enumerate_legal_swaps` integration, resolution integration (combo path + non-combo path), replay determinism + engine-version mismatch.
+
+Verification (Step 14):
+
+- `bash tools/test.sh` → 170/170 passing, 2989 asserts in ~6s.
+- `tools/build/godot/godot --headless --path . res://scenes/vertical_slice/vertical_slice_smoke.tscn` → Step 12 baseline still wins level 1 in 663 ms (unchanged — combos do not appear at level start because the opening move does not produce a 5-run or a 4-run, and there are no existing specials to swap).
+- `gdlint scripts/ tests/` → 9 errors total, all pre-existing Step 05-06 (Step 14 introduces zero new lint errors).
 
 References: `02-game-design.md`, `10-traceability-acceptance.md`.
 

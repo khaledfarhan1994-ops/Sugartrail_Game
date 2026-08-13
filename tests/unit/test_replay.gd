@@ -140,7 +140,7 @@ func test_reshuffle_is_deterministic_same_seed() -> void:
 func test_action_log_roundtrips_through_dict() -> void:
 	var log := Replay.ActionLog.new()
 	log.recipe = {"recipe_id": "level-1-1", "recipe_version": 1}
-	log.engine_version = "0.2.0-test"
+	log.engine_version = "0.3.0-test"
 	log.initial_rng_state = 12345
 	var b := _empty_board(4, 4)
 	b.set_piece(Coord.new(0, 0), Piece.new(0))
@@ -151,7 +151,7 @@ func test_action_log_roundtrips_through_dict() -> void:
 	var d: Dictionary = log.to_dict()
 	var restored: Replay.ActionLog = Replay.ActionLog.from_dict(d)
 	assert_eq(restored.recipe["recipe_id"], "level-1-1")
-	assert_eq(restored.engine_version, "0.2.0-test")
+	assert_eq(restored.engine_version, "0.3.0-test")
 	assert_eq(restored.initial_rng_state, 12345)
 	assert_eq(restored.final_rng_state, 99999)
 	assert_eq(restored.total_events, 7)
@@ -191,13 +191,13 @@ func test_replay_reproduces_final_state() -> void:
 	# Compose the log.
 	var log := Replay.ActionLog.new()
 	log.recipe = {"recipe_id": "test", "recipe_version": 1}
-	log.engine_version = "0.2.0-test"
+	log.engine_version = "0.3.0-test"
 	log.initial_rng_state = 42
 	log.initial_board = b.to_snapshot()
 	log.actions.append(Replay.Action.new(ActionKind.SWAP, a_coord, b_coord))
 	# Replay twice from clean state and compare hashes.
-	var r1: Replay.ReplayResult = Replay.replay(log, "0.2.0-test")
-	var r2: Replay.ReplayResult = Replay.replay(log, "0.2.0-test")
+	var r1: Replay.ReplayResult = Replay.replay(log, "0.3.0-test")
+	var r2: Replay.ReplayResult = Replay.replay(log, "0.3.0-test")
 	assert_true(r1.ok, "first replay ok")
 	assert_true(r2.ok, "second replay ok")
 	assert_eq(r1.result_hash, r2.result_hash, "result hashes must match")
@@ -210,19 +210,19 @@ func test_replay_reproduces_final_state() -> void:
 func test_replay_detects_engine_version_mismatch() -> void:
 	var log := Replay.ActionLog.new()
 	log.recipe = {"recipe_id": "test"}
-	log.engine_version = "0.1.0-old"
+	log.engine_version = "0.2.0-old"
 	log.initial_rng_state = 0
 	var b := _empty_board(4, 4)
 	b.set_piece(Coord.new(0, 0), Piece.new(0))
 	log.initial_board = b.to_snapshot()
-	var result: Replay.ReplayResult = Replay.replay(log, "0.2.0-new")
+	var result: Replay.ReplayResult = Replay.replay(log, "0.3.0-new")
 	assert_false(result.ok, "version mismatch should fail")
 	assert_true(result.last_error_message.find("engine version") >= 0,
 		"error message must mention engine version: %s" % result.last_error_message)
 
 func test_replay_detects_illegal_swap() -> void:
 	var log := Replay.ActionLog.new()
-	log.engine_version = "0.2.0-test"
+	log.engine_version = "0.3.0-test"
 	log.initial_rng_state = 0
 	var b := _empty_board(4, 4)
 	# No pieces; nothing to swap. Put a couple of pieces so try_swap
@@ -271,7 +271,7 @@ func test_replay_hash_includes_board_and_rng() -> void:
 	var b_coord: Coord = pick[1]
 	var make_log := func(rng_state: int) -> Replay.ActionLog:
 		var l := Replay.ActionLog.new()
-		l.engine_version = "0.2.0-test"
+		l.engine_version = "0.3.0-test"
 		l.initial_rng_state = rng_state
 		l.initial_board = b.to_snapshot()
 		l.actions.append(Replay.Action.new(ActionKind.SWAP, a_coord, b_coord))

@@ -69,6 +69,13 @@ const MAX_REMOVES_PER_CYCLE: int = 4096
 ## events, then SPECIAL_ACTIVATE events, then the normal REMOVE /
 ## MOVE / SPAWN events.
 ##
+## Step 14: when the player action swaps two cells both holding
+## SpecialPieces (a combo), and no 3-run is created by the swap, the
+## resolution runs the combo's `activate_combo` and then cascades
+## naturally (gravity, refill). The cycle emits CASCADE_START /
+## SPECIAL_ACTIVATE / REMOVE / MOVE / SPAWN / CASCADE_END events.
+## Combo activations count toward `total_removed`.
+##
 ## `swap_a` and `swap_b` (optional, default null) describe the
 ## player action that triggered this resolution; they participate in
 ## special-creation precedence (swap cell wins for 4-runs). Pass
@@ -78,6 +85,27 @@ const MAX_REMOVES_PER_CYCLE: int = 4096
 ## every resolution call to keep gameplay deterministic.
 static func resolve(board: Board, rng: Rng, swap_a: Coord = null, swap_b: Coord = null) -> CascadeResult:
 	var result: CascadeResult = CascadeResult.new()
+	# Step 14: combo fast-path. When the player swapped two cells both
+	# holding SpecialPieces (and the swap did NOT create a match), the
+	# only effect of the cycle is the combo activation. We perform it
+	# before the standard match-cascade loop.
+	var combo_emitted: bool = false
+	if swap_a != null and swap_b != null:
+		var cell_a: Cell = board.cell_at(swap_a)
+		var cell_b: Cell = board.cell_at(swap_b)
+		var both_specials: bool = cell_a != null and cell_b != null \
+				and cell_a.is_piece() and cell_b.is_piece() \
+				and cell_a.piece is SpecialPiece and cell_b.piece is SpecialPiece
+		var no_match_after_swap: bool = Rules.find_runs(board).size() == 0
+		if both_specials and no_match_after_swap:
+			_apply_combo(board, result, swap_a, swap_b)
+			combo_emitted = true
+			# After a combo, run gravity + refill then check for
+			# cascades (the cleared cells may have triggered matches).
+			result.events.append(DomainEvent.new(EventKind.CASCADE_START, [], -1, 0))
+			_apply_gravity(board, result, 0)
+			_refill(board, rng, result, 0)
+			result.events.append(DomainEvent.new(EventKind.CASCADE_END, [], -1, 0))
 	var cycle: int = 0
 	while true:
 		cycle += 1
@@ -99,7 +127,7 @@ static func resolve(board: Board, rng: Rng, swap_a: Coord = null, swap_b: Coord 
 		# Cascade cycles after the first have no player-action context.
 		swap_a = null
 		swap_b = null
-	result.cycles = cycle - 1
+	result.cycles = (1 if combo_emitted else 0) + cycle - 1
 	return result
 
 # ----------------------------------------------------------------------------
@@ -207,6 +235,75 @@ static func _resolve_cycle(board: Board, runs: Array,
 		result.events.append(DomainEvent.new(
 			EventKind.REMOVE, [cc], piece_kind, cascade_index))
 	return removed_count
+
+# ----------------------------------------------------------------------------
+# Step 14: combo activation
+# ----------------------------------------------------------------------------
+
+## Run a special+special combo activation. Emits a SPECIAL_ACTIVATE
+## event and REMOVE events for the cleared cells. The two specials
+## are consumed (their cells become empty). Blocked cells in the
+## cleared list are silently skipped.
+##
+## Step 14: when the resolution is called from a swap of two cells
+## both holding SpecialPieces, the swap has already been applied to
+## the board by `Rules.try_swap`. The post-swap board has each
+## cell holding the OTHER side's special, but the swap is a logical
+## activation — the effect is symmetric, so we read the kinds from
+## the cells (post-swap) and pass the swap_a / swap_b coords as
+## the combo epicentres.
+static func _apply_combo(board: Board, result: CascadeResult,
+		swap_a: Coord, swap_b: Coord) -> void:
+	var cell_a: Cell = board.cell_at(swap_a)
+	var cell_b: Cell = board.cell_at(swap_b)
+	if cell_a == null or cell_b == null:
+		return
+	if not (cell_a.piece is SpecialPiece) or not (cell_b.piece is SpecialPiece):
+		return
+	var sp_a: SpecialPiece = cell_a.piece
+	var sp_b: SpecialPiece = cell_b.piece
+	var dict_a: Dictionary = Specials.activate_combo(board, swap_a, swap_b,
+			sp_a.special.kind, sp_b.special.kind, sp_a.kind_id, sp_b.kind_id)
+	var cleared: Array = dict_a.get("cleared", [])
+	# Emit SPECIAL_ACTIVATE event. The origin is the swap-target
+	# (swap_a) and the resulting `cleared` list is the full combo
+	# cleared set.
+	result.events.append(DomainEvent.new(
+		EventKind.SPECIAL_ACTIVATE, [swap_a], sp_a.kind_id, -1,
+		int(dict_a.get("kind", SpecialKind.NONE)), swap_a, cleared))
+	# Emit REMOVE events for the cleared cells (lex-sorted, deduped).
+	# The two swap cells are part of the cleared set (the bomb/area
+	# origin cells). We mutate the board from a sorted list so the
+	# REMOVE event order is deterministic.
+	var removed_keys: Array = []
+	var seen: Dictionary = {}
+	for c in cleared:
+		var cc: Coord = c
+		var key: String = "%d,%d" % [cc.x, cc.y]
+		if seen.has(key):
+			continue
+		seen[key] = true
+		removed_keys.append(key)
+	removed_keys.sort_custom(func(a, b):
+		var pa: PackedStringArray = a.split(",")
+		var pb: PackedStringArray = b.split(",")
+		var ax: int = int(pa[0])
+		var ay: int = int(pa[1])
+		var bx: int = int(pb[0])
+		var by: int = int(pb[1])
+		if ay != by:
+			return ay < by
+		return ax < bx)
+	for k in removed_keys:
+		var cc: Coord = Coord.new(int(k.split(",")[0]), int(k.split(",")[1]))
+		var cell: Cell = board.cell_at(cc)
+		if cell == null or not cell.is_piece():
+			continue
+		var piece_kind: int = cell.piece.kind_id
+		board.set_empty(cc)
+		result.events.append(DomainEvent.new(
+			EventKind.REMOVE, [cc], piece_kind, 0))
+		result.total_removed += 1
 
 # ----------------------------------------------------------------------------
 # Gravity

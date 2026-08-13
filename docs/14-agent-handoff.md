@@ -33,11 +33,11 @@ record the answer in `decisions.md` and `work-log.md`.
 
 ## Current execution state
 
-- Current phase: Phase C, First Playable Product Slice.
-- Current step: Step 14.
-- Step status: Steps 01-13 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
-- Last completed step: Step 13 (special-piece creation and activation with deterministic precedence; 40 new fixtures; engine bumped to 0.2.0).
-- Next action: execute Step 14 — implement all special-piece combinations (combo activation rules and stable effect ordering).
+- Current phase: Phase D, Complete Gameplay Rules.
+- Current step: Step 15.
+- Step status: Steps 01-14 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
+- Last completed step: Step 14 (special-piece combinations: 10-row combinator matrix with direction invariance, swap precondition extended for special+special, replay determinism preserved; 25 new fixtures; engine bumped to 0.3.0).
+- Next action: execute Step 15 — implement launch blockers (one-hit frosting, layered frosting, locked cells, composable blocker rules).
 
 ## Build, test, and verification commands
 
@@ -75,7 +75,7 @@ Only commands that have actually succeeded in this environment are listed.
 | Remove caches that are safe to regenerate | `tools/build/cleanup.sh` | 2026-08-13 — pass |
 | Headless project import | `tools/build/godot/godot --headless --import` | 2026-08-13 — pass |
 | Headless boot scene (1 frame) | `tools/build/godot/godot --headless --path . --quit-after 1 res://scenes/boot/boot.tscn` | 2026-08-13 — pass |
-| Run unit tests | `bash tools/test.sh` | 2026-08-13 — exit 0, 105/105 passing; previously exit 2 when an intentional failure fixture was present |
+| Run unit tests | `bash tools/test.sh` | 2026-08-13 — exit 0, 170/170 passing; previously exit 2 when an intentional failure fixture was present |
 | Lint GDScript | `gdlint scripts/ tests/` | 2026-08-13 — pass |
 | One-shot CI run | `bash tools/ci.sh` | 2026-08-13 — pass (verify + disk + lint + tests) |
 

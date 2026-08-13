@@ -12,6 +12,7 @@ const Coord = Board.CellCoord
 const CellKind = Board.CellKind
 const Cell = Board.Cell
 const Piece = Board.Piece
+const SpecialPiece = Board.SpecialPiece
 
 # ----------------------------------------------------------------------------
 # Adjacency and bounds
@@ -100,9 +101,15 @@ static func _extend_v_run(board: Board, c: Coord) -> Array:
 # Legal swap
 # ----------------------------------------------------------------------------
 
-## Try to swap two adjacent piece cells. If the swap creates a run,
-## commit it; otherwise restore the originals and return false.
-## The board is mutated in-place only on success.
+## Try to swap two adjacent piece cells. A swap is legal when it
+## (a) creates a match, (b) swaps two cells both holding SpecialPieces
+## (a combo activation), or (c) is rejected by leaving the board
+## unchanged. The board is mutated in-place only on success.
+##
+## Step 14 adds (b): the swap itself is the activation trigger for a
+## special+special combo. Both cells must hold SpecialPieces (their
+## kinds feed the combinator); a swap of one special with a normal
+## piece still requires a 3-run (Step 13 swap-triggered activation).
 static func try_swap(board: Board, a: Coord, b: Coord) -> bool:
 	if not in_bounds(board, a) or not in_bounds(board, b):
 		return false
@@ -114,6 +121,9 @@ static func try_swap(board: Board, a: Coord, b: Coord) -> bool:
 		return false
 	if not cell_a.is_piece() or not cell_b.is_piece():
 		return false
+	# Step 14 combo fast-path: both cells hold SpecialPieces -> legal.
+	if cell_a.piece is SpecialPiece and cell_b.piece is SpecialPiece:
+		return true
 	# Snapshot originals (small; two Piece values).
 	var piece_a: Piece = cell_a.piece
 	var piece_b: Piece = cell_b.piece
@@ -137,7 +147,8 @@ static func try_swap(board: Board, a: Coord, b: Coord) -> bool:
 
 ## Enumerate every legal swap (a, b) in stable order. A legal swap
 ## is an orthogonal adjacent pair of piece cells whose swap creates
-## at least one match.
+## at least one match, OR an orthogonal adjacent pair both holding
+## SpecialPieces (a special+special combo).
 static func enumerate_legal_swaps(board: Board) -> Array:
 	var moves: Array = []
 	var seen := {}
@@ -161,12 +172,13 @@ static func enumerate_legal_swaps(board: Board) -> Array:
 			seen[key] = true
 			if try_swap(board, a, n):
 				moves.append([a, n])
-				# Undo: try_swap only commits when there is a run,
-				# so the swap is currently committed. Restore.
+				# Undo: try_swap only commits when there is a run
+				# or both cells are SpecialPieces; either way the
+				# swap is currently committed. Restore.
 				var cell_a_now: Cell = board.cell_at(a)
 				var cell_n_now: Cell = board.cell_at(n)
-				var pa: Piece = cell_a_now.piece
-				var pn: Piece = cell_n_now.piece
+				var pa = cell_a_now.piece
+				var pn = cell_n_now.piece
 				cell_a_now.piece = pn
 				cell_n_now.piece = pa
 	return moves
