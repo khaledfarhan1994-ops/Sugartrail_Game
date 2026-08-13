@@ -133,7 +133,7 @@ References: `01-product-requirements.md`, `08-delivery-operations.md`.
 
 ### Step 05: Implement board data model and deterministic random source
 
-Status: Not started
+Status: Complete
 
 Goal: Represent gameplay independently from Godot scenes and rendering.
 
@@ -154,7 +154,7 @@ References: `02-game-design.md`, `03-technical-architecture.md`.
 
 ### Step 06: Implement legal swaps and match detection
 
-Status: Not started
+Status: Complete
 
 Goal: Reliably recognize legal moves and all basic horizontal/vertical matches.
 
@@ -175,7 +175,7 @@ References: `02-game-design.md`, `04-level-pipeline.md`.
 
 ### Step 07: Implement resolution, gravity, refill, and cascades
 
-Status: Not started
+Status: In progress
 
 Goal: Complete the basic match-3 turn pipeline.
 

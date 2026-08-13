@@ -1,11 +1,12 @@
 # Project Status
 
-Last updated: 2026-08-13 (Step 03 complete; Step 04 next)
+Last updated: 2026-08-13 (Step 06 complete; Step 07 in progress)
 
 ## Current milestone
 
-Phase A, Step 04: Prove the Android export pipeline. Steps 01-03 are complete
-(repository, toolchain, test/CI foundations).
+Phase B, Step 07: Implement resolution, gravity, refill, and cascades.
+Steps 01-06 are complete. The domain data model, deterministic RNG, and
+match-3 rules are in place and 35 unit tests pass.
 
 ## Confirmed decisions
 
@@ -15,6 +16,10 @@ Phase A, Step 04: Prove the Android export pipeline. Steps 01-03 are complete
 - Original 2D candy-world identity.
 - 10,000+ procedural-plus-curated, solver-validated levels.
 - Single CLI orchestrator with selective approval.
+- Splitmix64 with 63-bit sign-clear as the deterministic RNG.
+- Flat `_cells` array indexed `y*width+x` for board state.
+- Match-3 rules: orthogonal adjacency, 3+ same-kind in a line, blocked
+  cells excluded from runs.
 
 ## Passing commands
 
@@ -25,23 +30,14 @@ Phase A, Step 04: Prove the Android export pipeline. Steps 01-03 are complete
 | Disk gate | `tools/build/disk-gate.sh` | 2026-08-13 — pass, 12 GB free |
 | Remove caches | `tools/build/cleanup.sh` | 2026-08-13 — pass |
 | Headless project import | `tools/build/godot/godot --headless --import` | 2026-08-13 — pass (Step 01 + Step 02 acceptance) |
-| Headless boot scene | `tools/build/godot/godot --headless --path . --quit-after 1 res://scenes/boot/boot.tscn` | 2026-08-13 — pass; boot.gd printed ready timestamp (Step 01 + Step 02 acceptance) |
-| Run unit tests | `bash tools/test.sh` | 2026-08-13 — exit 0, 3/3 passing; previously exit 2 when intentional failure fixture was present |
+| Headless boot scene | `tools/build/godot/godot --headless --path . --quit-after 1 res://scenes/boot/boot.tscn` | 2026-08-13 — pass; boot.gd printed ready timestamp |
+| Run unit tests | `bash tools/test.sh` | 2026-08-13 — exit 0, 35/35 passing (board 10, rng 9, rules 13, version 3) |
 | Lint GDScript | `gdlint scripts/ tests/` | 2026-08-13 — pass |
 | One-shot CI run | `bash tools/ci.sh` | 2026-08-13 — pass (verify + disk + lint + tests) |
 
 ## Known issues
 
-- `project.godot` references `res://assets/art/icon.svg` which does not yet
-  exist; production icon ships in Step 27. Step 04 must add a placeholder SVG
-  before the first real editor-driven export.
+- `project.godot` references `res://assets/art/icon.svg`; production icon ships in Step 27.
 - No baseline physical Android device has been selected. ADB is installed.
 - Final package ID, publisher identity, signing process, and store name remain undecided.
-- Step 04 (Android export pipeline proof) has not run yet.
-
-## Next work item
-
-Proceed to Step 04 in `11-implementation-roadmap.md`: prove the Android
-export pipeline — temporary package ID, Android 8/API 26 minimum, portrait,
-debug export preset, repeatable headless debug APK build, document physical
-device install via adb, keep signing keys outside the repo.
+- Step 04 (Android export pipeline proof) script is in place; the actual headless APK build was deferred to Step 12 because Gradle first-run downloads exceed the default 2-minute Bash timeout.
