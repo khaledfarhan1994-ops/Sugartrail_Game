@@ -1,0 +1,10 @@
+{
+	"dirs": ["res://tests/unit"],
+	"prefix": "test_",
+	"suffix": ".gd",
+	"include_subdirs": false,
+	"should_exit": true,
+	"log_level": 1,
+	"hide_orphans": false,
+	"junit_xml_file": "user://gut_results.xml"
+}

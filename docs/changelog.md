@@ -8,3 +8,5 @@ release behavior.
 
 - Established the product, game design, architecture, level, accessibility,
   content, quality, delivery, agent, roadmap, risk, and release specifications.
+- No player-visible changes yet — Step 01 added project skeleton and
+  repository policy only. Players see nothing on this commit.

@@ -1,0 +1,36 @@
+# Sugartrail pinned toolchain
+#
+# Edit this file when upgrading any of these values. The setup script
+# reads it; the CI matrix, the test runner, and the Android build all
+# call into the same pinned versions so every developer gets identical
+# output.
+
+# Godot 4.x stable release. Pinned to 4.3.stable on 2026-08-13.
+GODOT_VERSION=4.3.stable
+GODOT_RELEASE_TAG=4.3-stable
+GODOT_URL=https://github.com/godotengine/godot/releases/download/${GODOT_RELEASE_TAG}/Godot_v${GODOT_RELEASE_TAG}_linux.x86_64.zip
+GODOT_TEMPLATES_URL=https://github.com/godotengine/godot/releases/download/${GODOT_RELEASE_TAG}/Godot_v${GODOT_RELEASE_TAG}_export_templates.tpz
+
+# Godot's expected templates directory version string (matches the
+# templates.zip internal layout for Godot 4.x).
+GODOT_TEMPLATES_DIR=templates
+
+# Java toolchain. Java 17 is the minimum Godot 4 / Android Gradle
+# recommends; the Codespace ships 25 which is also compatible.
+JAVA_REQUIRED=17
+
+# Android SDK pieces.
+ANDROID_PLATFORM_SDK=android-34
+ANDROID_BUILD_TOOLS=34.0.0
+ANDROID_PLATFORM_TOOLS_REV=37.0.1
+
+# Min Android API the APK targets / runs on (Step 04 plan).
+ANDROID_MIN_SDK=26
+ANDROID_TARGET_SDK=34
+ANDROID_PACKAGE_ID=ai.sugartrail.game.dev
+ANDROID_ORIENTATION=portrait
+
+# Where the toolchain lives on disk (project-local, ignored by git).
+TOOLCHAIN_ROOT=tools/build
+GODOT_BIN=${TOOLCHAIN_ROOT}/godot/godot
+ANDROID_SDK=${TOOLCHAIN_ROOT}/android-sdk

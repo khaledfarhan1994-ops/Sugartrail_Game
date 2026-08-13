@@ -1,31 +1,49 @@
-# Project SDLC
+# Sugartrail
 
-This directory contains the product and engineering contract for an original,
-offline, portrait Android match-3 game built by a CLI AI agent.
+Original, family-friendly, fully offline 2D match-3 puzzle game for Android.
+Built by a single CLI AI agent following the SDLC in [`docs/`](docs).
 
-The documents are ordered for execution:
+- **Working title:** Sugartrail
+- **Engine:** Godot 4 (GDScript, 2D) — exact pinned version is selected in Step 02
+- **Platform:** Android 8 / API 26+, portrait
+- **Audience:** ages 7+
+- **Runtime:** fully offline, no account, no ads, no purchases, no telemetry
 
-1. [Product Requirements](docs/01-product-requirements.md)
-2. [Game Design](docs/02-game-design.md)
-3. [Technical Architecture](docs/03-technical-architecture.md)
-4. [Level Pipeline](docs/04-level-pipeline.md)
-5. [UX and Accessibility](docs/05-ux-accessibility.md)
-6. [Art and Audio](docs/06-art-audio.md)
-7. [Quality Strategy](docs/07-quality-strategy.md)
-8. [Delivery and Operations](docs/08-delivery-operations.md)
-9. [AI Agent Playbook](docs/09-ai-agent-playbook.md)
-10. [Traceability and Acceptance](docs/10-traceability-acceptance.md)
-11. [Implementation Roadmap](docs/11-implementation-roadmap.md)
-12. [Risk Register](docs/12-risk-register.md)
-13. [Release Checklist](docs/13-release-checklist.md)
-14. [Agent Context and Handoff](docs/14-agent-handoff.md)
+## SDLC
 
-The current project identity is intentionally a working identity. The agent
-may refine it only through the change-control process in the playbook.
+The contract for the project lives in `docs/01-product-requirements.md`
+through `docs/14-agent-handoff.md`. Step 01's execution entrypoint is
+[`docs/11-implementation-roadmap.md`](docs/11-implementation-roadmap.md).
 
-Living records used during development:
+## Local development
 
-- [Project Status](docs/status.md)
-- [Architecture Decisions](docs/decisions.md)
-- [Product Changelog](docs/changelog.md)
-- [Execution Work Log](docs/work-log.md)
+| Purpose | Command |
+| --- | --- |
+| Install / refresh the pinned toolchain (idempotent) | `bash tools/build/setup.sh` |
+| Verify versions, templates, SDK, disk, headless import | `bash tools/build/verify.sh` |
+| Disk gate (warn < 8 GB, block < 6 GB) | `bash tools/build/disk-gate.sh` |
+| Remove regenerable caches | `bash tools/build/cleanup.sh` |
+| Edit the project | Open the folder in Godot 4 (or `tools/build/godot/godot -e --path .`) |
+| Headless boot verification | `tools/build/godot/godot --headless --path . --quit-after 1 res://scenes/boot/boot.tscn` |
+| Run the boot scene | `tools/build/godot/godot --path . res://scenes/boot/boot.tscn` |
+| Lint (GDScript) | `gdlint scripts/ tests/` |
+| Run all unit tests | `bash tools/test.sh` (exit 0 = pass, 2 = failures) |
+| Reproduce a failing test locally | temporarily add a test with `assert_true(false, "...")` to `tests/unit/`; `tools/test.sh` will exit 2; remove the test when done |
+| One-shot CI run | `bash tools/ci.sh` (toolchain + disk + lint + tests) |
+
+## Repository policy
+
+- Source, project configuration, scripts, data, tools, tests, docs, and
+  licensed release assets are committed.
+- Godot caches (`.godot/`), imports (`.import/`), logs, build outputs,
+  signing keys, and local environment files are ignored — see `.gitignore`.
+- No signing credentials, API keys, or personal data are ever committed.
+- Do not commit 10,000 generated level scenes. Levels ship as data recipes.
+
+## Contributing
+
+This project is built by a CLI orchestrator agent. See
+[`docs/09-ai-agent-playbook.md`](docs/09-ai-agent-playbook.md) for the rules
+and approval gates the agent follows. Human review is required for every step
+that introduces new gameplay mechanics, networked features, assets of unclear
+license, or destructive save changes.

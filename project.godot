@@ -1,0 +1,63 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Sugartrail"
+config/description="Sugartrail — original offline match-3 puzzle game. Working title."
+run/main_scene="res://scenes/boot/boot.tscn"
+config/features=PackedStringArray("4.2", "GL Compatibility")
+config/icon="res://assets/art/icon.svg"
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/size/resizable=true
+window/handheld/orientation=1
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/stretch/scale_mode="fractional"
+window/stretch/scale_factor=1.0
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+pointing/emulate_mouse_from_touch=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas/texture_default_shrink=0
+
+[android]
+
+android/min_sdk_version="26"
+android/target_sdk_version="34"
+; Architecture priority — only ship architectures that the
+; baseline device profile supports; arm64-v8a covers all modern
+; Android devices and is enough for Step 04's proof.
+android/architectures=PackedStringArray("arm64-v8a")
+; Force portrait at the engine level as a belt-and-braces second
+; guard besides window/handheld/orientation.
+android/screen_orientation=1
+; Mark the app as a game so Android does not classify it as a tool.
+android/app_category=2
+; The Godot package_id becomes the Android application ID. Final
+; publisher identity is decided before Step 28; this is a temporary
+; development ID.
+config/package/unique_name="org.godotengine.game"
+package/unique_name="ai.sugartrail.game.dev"
+package/name="Sugartrail"
+package/signed=true
+package/app_category=2
+package/retain_data_on_uninstall=false
+package/export_path="build/sugartrail-debug.apk"

@@ -44,7 +44,7 @@ Every completed step needs a work-log entry containing:
 
 ### Step 01: Initialize repository and project skeleton
 
-Status: Not started
+Status: Complete
 
 Goal: Create a clean, minimal Godot 4 GDScript project that can run headlessly.
 
@@ -66,7 +66,7 @@ References: `01-product-requirements.md`, `03-technical-architecture.md`, `08-de
 
 ### Step 02: Pin and verify the development toolchain
 
-Status: Not started
+Status: Complete
 
 Goal: Make the Codespace environment reproducible and storage-aware.
 
@@ -88,7 +88,7 @@ References: `08-delivery-operations.md`, `12-risk-register.md`.
 
 ### Step 03: Establish automated test and CI foundations
 
-Status: Not started
+Status: Complete
 
 Goal: Create the verification framework before gameplay implementation.
 
