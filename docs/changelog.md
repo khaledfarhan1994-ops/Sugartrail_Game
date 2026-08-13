@@ -21,3 +21,5 @@ release behavior.
 
 - Step 07: Resolution, gravity, refill, and cascades. SugartrailResolution with DomainEvent / CascadeResult, resolve pipeline capped at MAX_CASCADE_CYCLES=100, gravity respects blocked cells, deterministic refill. 14 new unit tests. Total: 49/49 passing.
 - Step 08: Deadlock detection, deterministic reshuffle, replay. SugartrailReplay with has_legal_moves, reshuffle (Fisher-Yates preserving multiset), ActionLog + replay with stable result hash. 12 new unit tests. Total: 61/61 passing. Added gdlintrc allowing PascalCase type aliases.
+
+- Step 09: Board presentation and input layer. SugartrailGameplayView with portrait scene, state machine for input locking, swipe + tap-select input, domain-event-driven view updates, original-safe placeholder visuals. 7 new unit tests. Total: 68/68 passing. Added [gdscript] project section so editor-driven builds don't reject the to_string() override warning from domain inner classes.

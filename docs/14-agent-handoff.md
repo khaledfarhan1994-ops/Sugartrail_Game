@@ -34,10 +34,10 @@ record the answer in `decisions.md` and `work-log.md`.
 ## Current execution state
 
 - Current phase: Phase C, First Playable Product Slice.
-- Current step: Step 09.
-- Step status: Steps 01-08 Complete; Step 09 in progress.
-- Last completed step: Step 08 (deadlock detection, deterministic reshuffle, and replay).
-- Next action: execute Step 09 — board presentation and input layer.
+- Current step: Step 10.
+- Step status: Steps 01-09 Complete; Step 10 in progress.
+- Last completed step: Step 09 (board presentation and input layer).
+- Next action: execute Step 10 — level session, basic objective, and scoring shell.
 
 ## Build, test, and verification commands
 

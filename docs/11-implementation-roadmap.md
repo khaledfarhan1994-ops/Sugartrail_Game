@@ -219,7 +219,7 @@ References: `04-level-pipeline.md`, `07-quality-strategy.md`.
 
 ### Step 09: Build the board presentation and input layer
 
-Status: In progress
+Status: Complete
 
 Goal: Make the deterministic engine playable without coupling rules to visuals.
 
@@ -241,7 +241,7 @@ References: `05-ux-accessibility.md`, `06-art-audio.md`.
 
 ### Step 10: Add level session, basic objective, and scoring shell
 
-Status: Not started
+Status: In progress
 
 Goal: Turn the board into a complete move-limited level session.
 
