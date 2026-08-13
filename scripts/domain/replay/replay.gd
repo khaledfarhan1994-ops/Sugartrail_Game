@@ -254,7 +254,7 @@ static func replay(log: ActionLog, expected_engine_version: String) -> ReplayRes
 				result.ok = false
 				result.last_error_action = i
 				result.last_error_message = "illegal swap (%s, %s) at action %d" % [
-					a.a.to_string(), a.b.to_string(), i]
+					a.a._to_debug_string(), a.b._to_debug_string(), i]
 				return result
 			var cascade: Resolution.CascadeResult = Resolution.resolve(board, rng)
 			total_events += cascade.events.size()

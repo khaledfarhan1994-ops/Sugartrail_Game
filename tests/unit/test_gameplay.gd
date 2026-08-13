@@ -39,7 +39,7 @@ func test_gameplay_scene_builds_with_domain_board() -> void:
 	# avoid_initial_matches was used).
 	for c in view.get_board().all_coords():
 		assert_true(view.get_board().cell_at(c).is_piece(),
-			"cell %s should have a piece" % c.to_string())
+			"cell %s should have a piece" % c._to_debug_string())
 
 func test_gameplay_render_initial_has_one_view_per_cell() -> void:
 	var view: Node2D = _make_gameplay()
@@ -57,7 +57,7 @@ func test_gameplay_kind_at_returns_piece_kind() -> void:
 		var kind: int = b.cell_at(c).piece.kind_id
 		var reported: int = view.kind_at(c)
 		assert_eq(reported, kind,
-			"kind_at(%s) should match domain, got %d vs %d" % [c.to_string(), reported, kind])
+			"kind_at(%s) should match domain, got %d vs %d" % [c._to_debug_string(), reported, kind])
 
 func test_gameplay_programmatic_swap_legal_updates_views() -> void:
 	var view: Node2D = _make_gameplay()
@@ -86,7 +86,7 @@ func test_gameplay_programmatic_swap_legal_updates_views() -> void:
 			domain_kind = dom_cell.piece.kind_id
 		var view_kind: int = view.kind_at(c)
 		assert_eq(view_kind, domain_kind,
-			"view out of sync at %s: domain=%d view=%d" % [c.to_string(), domain_kind, view_kind])
+			"view out of sync at %s: domain=%d view=%d" % [c._to_debug_string(), domain_kind, view_kind])
 
 func test_gameplay_programmatic_swap_illegal_returns_false() -> void:
 	var view: Node2D = _make_gameplay()

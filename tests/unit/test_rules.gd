@@ -7,7 +7,7 @@ const Coord = Board.CellCoord
 
 func _assert_coord(actual: Coord, expected_x: int, expected_y: int, msg: String = "") -> void:
 	assert_true(actual.is_equal_to(Coord.new(expected_x, expected_y)),
-		"%s: expected (%d,%d) got %s" % [msg, expected_x, expected_y, actual.to_string()])
+		"%s: expected (%d,%d) got %s" % [msg, expected_x, expected_y, actual._to_debug_string()])
 
 func _board_with_match() -> Board:
 	# 6x6 board with one isolated horizontal triple at (1,2)(2,2)(3,2).
@@ -182,4 +182,4 @@ func test_enumerate_legal_swaps_is_canonical() -> void:
 		var n: Coord = m[1]
 		# a must come before n lex.
 		var a_first: bool = a.x < n.x or (a.x == n.x and a.y < n.y)
-		assert_true(a_first, "swap (%s,%s) not in canonical order" % [a.to_string(), n.to_string()])
+		assert_true(a_first, "swap (%s,%s) not in canonical order" % [a._to_debug_string(), n._to_debug_string()])

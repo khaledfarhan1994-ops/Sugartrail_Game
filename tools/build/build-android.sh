@@ -50,6 +50,34 @@ export ANDROID_HOME="$ANDROID_SDK"
 # Java 17 floor is set in TOOLCHAIN.txt; the host JDK is detected via $PATH.
 export PATH="$JAVA_HOME/bin:$ANDROID_SDK/cmdline-tools/latest/bin:$ANDROID_SDK/platform-tools:$PATH"
 
+# Configure Godot's editor settings so the headless export knows where
+# the Android SDK lives. The Godot export reads editor_settings-*.tres
+# from $HOME/.config/godot; we set the SDK path there before invoking
+# the exporter. This is idempotent: re-running build-android.sh leaves
+# the file in the correct state. We use absolute paths because the
+# editor resolves editor_settings keys relative to its working
+# directory, which differs from the project root.
+ABS_ANDROID_SDK="$(cd "$ROOT" && readlink -f "$ANDROID_SDK")"
+ABS_JAVA_HOME="$(cd "$ROOT" && readlink -f "$JAVA_HOME")"
+SETTINGS="$HOME/.config/godot/editor_settings-4.3.tres"
+if [ -d "$(dirname "$SETTINGS")" ]; then
+	if ! grep -q "android_sdk_path" "$SETTINGS" 2>/dev/null; then
+		# First-time setup: append the SDK + JDK paths.
+		cat >> "$SETTINGS" <<-EOF
+		export/android/java_sdk_path = "$ABS_JAVA_HOME"
+		export/android/android_sdk_path = "$ABS_ANDROID_SDK"
+		export/android/debug_keystore = "$HOME/.local/share/godot/keystores/debug.keystore"
+		export/android/debug_keystore_user = "androiddebugkey"
+		export/android/debug_keystore_pass = "android"
+		EOF
+	else
+		# Replace empty android_sdk_path.
+		sed -i.bak "s|^export/android/android_sdk_path = .*|export/android/android_sdk_path = \"$ABS_ANDROID_SDK\"|" "$SETTINGS"
+		sed -i.bak "s|^export/android/java_sdk_path = .*|export/android/java_sdk_path = \"$ABS_JAVA_HOME\"|" "$SETTINGS"
+		rm -f "$SETTINGS.bak"
+	fi
+fi
+
 # Use Godot's bundled Gradle build service so we do not need the
 # Android Gradle Plugin to be installed globally. The Godot
 # editor's "android_source_template" creates a project under

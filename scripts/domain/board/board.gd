@@ -38,7 +38,7 @@ class CellCoord:
 			return a.y < b.y
 		return a.x < b.x
 
-	func to_string() -> String:
+	func _to_debug_string() -> String:
 		return "(%d,%d)" % [x, y]
 
 	func to_dict() -> Dictionary:
@@ -95,12 +95,12 @@ class Cell:
 	func is_blocked() -> bool:
 		return kind == CellKind.BLOCKED
 
-	func to_string() -> String:
+	func _to_debug_string() -> String:
 		if is_piece():
-			return "%s=piece(%d)" % [coord.to_string(), piece.kind_id]
+			return "%s=piece(%d)" % [coord._to_debug_string(), piece.kind_id]
 		elif is_blocked():
-			return "%s=blocked" % coord.to_string()
-		return "%s=empty" % coord.to_string()
+			return "%s=blocked" % coord._to_debug_string()
+		return "%s=empty" % coord._to_debug_string()
 
 # ----------------------------------------------------------------------------
 # Board configuration and state
@@ -132,11 +132,11 @@ class BoardConfig:
 				push_error("BoardConfig: blocked cell is not a CellCoord: %s" % str(c))
 				continue
 			if c.x < 0 or c.x >= width or c.y < 0 or c.y >= height:
-				push_error("BoardConfig: blocked cell %s out of bounds %dx%d" % [c.to_string(), width, height])
+				push_error("BoardConfig: blocked cell %s out of bounds %dx%d" % [c._to_debug_string(), width, height])
 				continue
 			var key: String = "%d,%d" % [c.x, c.y]
 			if seen.has(key):
-				push_error("BoardConfig: duplicate blocked cell %s" % c.to_string())
+				push_error("BoardConfig: duplicate blocked cell %s" % c._to_debug_string())
 				continue
 			seen[key] = true
 
@@ -183,17 +183,17 @@ func cell_at(c: CellCoord) -> Cell:
 	return _cells[_index(c.x, c.y)]
 
 func set_piece(c: CellCoord, piece: Piece) -> void:
-	assert(in_bounds(c.x, c.y), "set_piece out of bounds: %s" % c.to_string())
+	assert(in_bounds(c.x, c.y), "set_piece out of bounds: %s" % c._to_debug_string())
 	var cell: Cell = _cells[_index(c.x, c.y)]
-	assert(cell.kind != CellKind.BLOCKED, "set_piece into a BLOCKED cell: %s" % c.to_string())
+	assert(cell.kind != CellKind.BLOCKED, "set_piece into a BLOCKED cell: %s" % c._to_debug_string())
 	assert(piece != null, "set_piece requires non-null Piece")
 	cell.kind = CellKind.PIECE
 	cell.piece = piece
 
 func set_empty(c: CellCoord) -> void:
-	assert(in_bounds(c.x, c.y), "set_empty out of bounds: %s" % c.to_string())
+	assert(in_bounds(c.x, c.y), "set_empty out of bounds: %s" % c._to_debug_string())
 	var cell: Cell = _cells[_index(c.x, c.y)]
-	assert(cell.kind != CellKind.BLOCKED, "set_empty into a BLOCKED cell: %s" % c.to_string())
+	assert(cell.kind != CellKind.BLOCKED, "set_empty into a BLOCKED cell: %s" % c._to_debug_string())
 	cell.kind = CellKind.EMPTY
 	cell.piece = null
 
@@ -230,14 +230,14 @@ func validate() -> bool:
 	for cell in _cells:
 		if cell.is_piece():
 			if cell.piece == null:
-				push_error("validate: PIECE cell %s has null Piece" % cell.coord.to_string())
+				push_error("validate: PIECE cell %s has null Piece" % cell.coord._to_debug_string())
 				return false
 			if cell.piece.kind_id < 0 or cell.piece.kind_id >= config.normal_palette_size:
-				push_error("validate: PIECE cell %s has invalid kind_id %d" % [cell.coord.to_string(), cell.piece.kind_id])
+				push_error("validate: PIECE cell %s has invalid kind_id %d" % [cell.coord._to_debug_string(), cell.piece.kind_id])
 				return false
 		elif cell.kind == CellKind.EMPTY:
 			if cell.piece != null:
-				push_error("validate: EMPTY cell %s has non-null Piece" % cell.coord.to_string())
+				push_error("validate: EMPTY cell %s has non-null Piece" % cell.coord._to_debug_string())
 				return false
 	return true
 

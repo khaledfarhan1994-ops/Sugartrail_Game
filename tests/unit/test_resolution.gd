@@ -148,7 +148,7 @@ func test_resolve_event_log_is_well_formed() -> void:
 		var ev: Resolution.DomainEvent = e
 		for c in ev.coords:
 			var cc: Coord = c
-			assert_true(b.in_bounds(cc.x, cc.y), "event coord out of bounds: %s" % cc.to_string())
+			assert_true(b.in_bounds(cc.x, cc.y), "event coord out of bounds: %s" % cc._to_debug_string())
 
 # ----------------------------------------------------------------------------
 # Determinism

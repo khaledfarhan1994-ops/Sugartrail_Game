@@ -280,13 +280,13 @@ class DomainEvent:
 			"cascade": cascade,
 		}
 
-	func to_string() -> String:
+	func _to_debug_string() -> String:
 		var names := ["REMOVE", "MOVE", "SPAWN", "CASCADE_START", "CASCADE_END"]
 		var name: String = names[kind] if kind >= 0 and kind < names.size() else "UNKNOWN"
 		var coord_strs: Array = []
 		for c in coords:
 			var cc: Coord = c
-			coord_strs.append(cc.to_string())
+			coord_strs.append(cc._to_debug_string())
 		return "[%s cascade=%d] kind=%d coords=%s" % [
 			name, cascade, piece_kind_id, str(coord_strs)
 		]
@@ -303,5 +303,5 @@ class CascadeResult:
 	func _init() -> void:
 		events = []
 
-	func to_string() -> String:
+	func _to_debug_string() -> String:
 		return "CascadeResult(cycles=%d, removed=%d, events=%d)" % [cycles, total_removed, events.size()]

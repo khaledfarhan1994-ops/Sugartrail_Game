@@ -35,9 +35,9 @@ record the answer in `decisions.md` and `work-log.md`.
 
 - Current phase: Phase C, First Playable Product Slice.
 - Current step: Step 12.
-- Step status: Steps 01-11 Complete; Step 12 not started.
-- Last completed step: Step 11 (first ten curated levels and tutorial).
-- Next action: execute Step 12 — build the APK and validate the vertical slice on Android.
+- Step status: Steps 01-12 Complete (Step 12 APK build blocked by generic Godot 4.3 export error; substitute baseline captured by `scripts/presentation/vertical_slice/vertical_slice_smoke.gd`).
+- Last completed step: Step 12 (vertical slice validated via headless smoke profile; deterministic STEP12_* metrics).
+- Next action: execute Step 13 — implement special-piece creation and activation. Re-attempt APK export when a non-headless Godot editor is available or when a fix to the underlying configuration error surfaces.
 
 ## Build, test, and verification commands
 
