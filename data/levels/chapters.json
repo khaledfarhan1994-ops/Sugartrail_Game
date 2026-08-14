@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "chapters": [
+    {
+      "id": "ch1-sweet-trail",
+      "title": "Sweet Trail",
+      "level_ids": [
+        "l1-first-match",
+        "l2-horizontal-vertical",
+        "l3-cascade",
+        "l4-move-budget",
+        "l5-stars"
+      ],
+      "stars_required": 0
+    },
+    {
+      "id": "ch2-cascade-master",
+      "title": "Cascade Master",
+      "level_ids": [
+        "l6-cascade-pressure",
+        "l7-tight-budget",
+        "l8-pause-and-restart",
+        "l9-long-combo",
+        "l10-final"
+      ],
+      "stars_required": 6
+    },
+    {
+      "id": "ch3-blocked-confection",
+      "title": "Blocked Confection",
+      "level_ids": [
+        "l11-frosting-intro",
+        "l12-locked-cells",
+        "l13-clear-layers",
+        "l14-release-token",
+        "l15-mixed-objectives"
+      ],
+      "stars_required": 6
+    }
+  ]
+}

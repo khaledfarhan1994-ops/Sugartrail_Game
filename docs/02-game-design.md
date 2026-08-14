@@ -239,6 +239,39 @@ Booster inventory is earned from stars, milestones, tutorials, and optional
 daily-local challenges based on device date. Date manipulation must not corrupt
 progress or award unlimited rewards.
 
+### 6.1 World-map data model (Step 19)
+
+The world map is data + a derived view:
+
+- **`Chapter`** — `{id, title, level_ids[], stars_required}`. Levels
+  inside a chapter are an unlock chain in declared order.
+- **`ChapterCatalog`** — the full ordered list of chapters + flat
+  list of every level id + an index from level id to chapter
+  number. Loaded from `data/levels/chapters.json`.
+- **`MapNode`** — a derived record per level carrying `level_id`,
+  `chapter_id`, `chapter_title`, `index_in_chapter`, computed
+  `state` (`LOCKED` / `UNLOCKED` / `COMPLETED`), `best_stars`,
+  `best_score`, and `is_focus` (the node the app suggests when the
+  player opens the map).
+- **Lock state** is computed from `SaveData` + the catalog — it is
+  NOT persisted separately. If the save resets or is restored from
+  backup, the map rediscovers its true state from `best_stars` +
+  `completed_once`. This means "skip ahead" cheats cannot persist
+  past a save reset.
+- **Chapter unlock gates**: a chapter is unlocked when the previous
+  chapter has at least `stars_required` stars from completed levels
+  (chapter 1 is always unlocked). When `stars_required <= 0` the
+  gate falls back to "previous chapter's last level is completed".
+- **Per-level unlock chain**: a level is `UNLOCKED` when its chapter
+  is unlocked AND either it is the first level of the chapter OR
+  the immediately-preceding level in catalog order is completed.
+- **Focus**: the first `UNLOCKED`, not-yet-`COMPLETED` node in
+  catalog order. If every level is completed, focus falls back to
+  the last node (so replay is always available).
+- **Replays**: replaying a completed level updates `best_stars` /
+  `best_score` monotonically up via
+  `SugartrailProgression.record_completion`.
+
 ## 7. Player settings
 
 - Music volume, effects volume, haptics toggle.

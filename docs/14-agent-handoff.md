@@ -34,10 +34,10 @@ record the answer in `decisions.md` and `work-log.md`.
 ## Current execution state
 
 - Current phase: Phase E, Player Progress and Experience.
-- Current step: Step 19.
-- Step status: Steps 01-18 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
-- Last completed step: Step 18 (robust local persistence: SugartrailSaveData versioned local save schema v1 with FNV-1a checksum + integrity metadata; SaveIO atomic write + backup rotation + load recovery; 18 new fixtures for 272 total tests; engine stays at 0.6.0).
-- Next action: execute Step 19 — world map and progression.
+- Current step: Step 19 complete (domain layer shipped).
+- Step status: Steps 01-19 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
+- Last completed step: Step 19 (world map and progression: `SugartrailProgression` Chapter + ChapterCatalog + MapNode + NodeState enum; `compute_state` derives LOCKED/UNLOCKED/COMPLETED + focus from SaveData + chapter catalog; `record_completion` mutates SaveData monotonically; `validate_catalog` flags unknown/duplicate ids and empty chapters; `data/levels/chapters.json` ships 3 chapters × 5 levels; 15 new fixtures for 287 total tests).
+- Next action: execute Step 20 — rewards and balanced booster economy.
 
 ## Build, test, and verification commands
 
@@ -59,8 +59,13 @@ record the answer in `decisions.md` and `work-log.md`.
 - `scripts/domain/levels/level_recipe.gd` — SugartrailLevelRecipe (schema v1 validation, JSON load, with_defaults).
 - `scripts/domain/levels/level_loader.gd` — SugartrailLevelLoader (load_level, load_all_curated, has_opening_move).
 - `scripts/domain/tutorial/tutorial.gd` — SugartrailTutorial (Prompt, TutorialPack, Catalog, english).
+- `scripts/domain/hints/hints.gd` — SugartrailHints deterministic legal-move ranker (suggest, Score breakdown).
+- `scripts/domain/boosters/boosters.gd` — SugartrailBooster BoosterPack + two-phase request/confirm + SWAP_RETRY launch entry.
+- `scripts/domain/persistence/save_data.gd` — SugartrailSaveData SaveData schema v1 + LevelRecord + InventoryRecord + SettingsRecord + TutorialFlags + ActiveSession + SaveMetadata (FNV-1a 32-bit checksum).
+- `scripts/domain/persistence/save_io.gd` — SugartrailSaveIO atomic write + backup rotation + load recovery + IoResult.
+- `scripts/domain/progression/chapter.gd` — SugartrailProgression Chapter + ChapterCatalog + MapNode + NodeState enum + compute_state + record_completion + validate_catalog + focus_level_id.
 - `data/levels/curated/{l1..l10}-*.json` plus `INDEX.json` — ten data-driven levels.
-- All 105 unit tests across 9 suites pass (2653 asserts in ~6s).
+- All 287 unit tests across 26 suites pass (3395 asserts in ~9s).
 - Repository state: Git repository with the original commit `930bf27` plus the staged Step 01 + Step 02 changes. Step 02 added `tools/build/TOOLCHAIN.txt` (pinned Godot 4.3.stable, Java 17+, Android API 34 / Build-Tools 34.0.0 / Min API 26), `tools/build/{setup,verify,cleanup,disk-gate}.sh`, and installed Godot 4.3 stable, Android cmdline-tools, platform-tools, android-34, and build-tools 34.0.0 on disk under `tools/build/` (gitignored). Headless project import + headless boot scene both pass.
 
 ## Established commands
@@ -75,7 +80,7 @@ Only commands that have actually succeeded in this environment are listed.
 | Remove caches that are safe to regenerate | `tools/build/cleanup.sh` | 2026-08-13 — pass |
 | Headless project import | `tools/build/godot/godot --headless --import` | 2026-08-13 — pass |
 | Headless boot scene (1 frame) | `tools/build/godot/godot --headless --path . --quit-after 1 res://scenes/boot/boot.tscn` | 2026-08-13 — pass |
-| Run unit tests | `bash tools/test.sh` | 2026-08-13 — exit 0, 170/170 passing; previously exit 2 when an intentional failure fixture was present |
+| Run unit tests | `bash tools/test.sh` | 2026-08-14 — exit 0, 286/287 passing (1 pre-existing risky/pending); previously exit 2 when an intentional failure fixture was present |
 | Lint GDScript | `gdlint scripts/ tests/` | 2026-08-13 — pass |
 | One-shot CI run | `bash tools/ci.sh` | 2026-08-13 — pass (verify + disk + lint + tests) |
 

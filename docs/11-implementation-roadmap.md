@@ -576,7 +576,7 @@ References: `03-technical-architecture.md`, `07-quality-strategy.md`.
 
 ### Step 19: Build world map and progression
 
-Status: Not started
+Status: Complete (domain layer shipped; presentation UI in a later phase)
 
 Goal: Connect levels through chapter-based progression and replay.
 

@@ -1,25 +1,29 @@
 # Project Status
 
-Last updated: 2026-08-14 (Step 18 complete; Step 19 next)
+Last updated: 2026-08-14 (Step 19 complete; Step 20 next)
 
 ## Current milestone
 
-Phase E, Step 18: Robust local persistence.
-Steps 01-17 are complete. Step 18 ships the persistence
-foundation: a versioned `SugartrailSaveData` document
-(schema v1, FNV-1a 32-bit checksum, integrity metadata,
-level records, inventory, settings, tutorial flags, active
-session) and a `SugartrailSaveIO` module that performs
-atomic writes (temp file + flush + rename) and rotates
-the previous primary to a backup on every write. The
-loader validates the schema, the checksum, and per-record
-ranges; failure on the primary falls back to the backup
-and reports a corruption recovery. The IO module never
-throws — it returns an `IoResult` the application layer can
-handle. Engine version stays at 0.6.0 (no replay schema
-change). 18 new tests (test_save) bring the total to 272
-(271 passing + 1 risky/pending for the pre-existing
-unreachable deadlock precondition). Zero new lint errors.
+Phase E, Step 19: World map and progression (domain layer).
+Steps 01-18 are complete. Step 19 ships the world-map data
+model: `suggested` Chapter + ChapterCatalog + MapNode +
+NodeState enum, a `compute_state` function that derives
+LOCKED/UNLOCKED/COMPLETED node states + the player's focus
+node from the SaveData + the chapter catalog, a
+`record_completion` mutator that updates level records
+monotonically (best_stars/best_score never regress), a
+`validate_catalog` guard against unknown / duplicate /
+empty chapters, and `data/levels/chapters.json` shipping
+three chapters of five curated levels each
+(ch1-sweet-trail, ch2-cascade-master, ch3-blocked-confection)
+with the ch2/ch3 stars_required=6 gates that match the
+roadmap. The presentation layer that paints the map on
+screen lives in a later step (see notes in
+`docs/02-game-design.md` §6.1 and the "Known issues"
+section below). 15 new fixtures (test_progression) bring
+the total to 287 (286 passing + 1 pre-existing risky
+pending for the unreachable deadlock precondition).
+Zero new lint errors.
 
 ## Confirmed decisions
 
@@ -51,7 +55,7 @@ unreachable deadlock precondition). Zero new lint errors.
 | Headless project import | `tools/build/godot/godot --headless --import` | 2026-08-13 — pass (Step 01 + Step 02 acceptance) |
 | Headless boot scene | `tools/build/godot/godot --headless --path . --quit-after 1 res://scenes/boot/boot.tscn` | 2026-08-13 — pass; boot.gd printed ready timestamp |
 | Vertical slice smoke profile | `tools/build/godot/godot --headless --path . res://scenes/vertical_slice/vertical_slice_smoke.tscn` | 2026-08-13 — pass; emits STEP12_LOAD, STEP12_SWAP (×8), STEP12_WIN, STEP12_END. Level 1 won in 684 ms with 8 swaps (score 390, seed 364017463632246932). |
-| Run unit tests | `bash tools/test.sh` | 2026-08-14 — exit 0, 271/271 passing (board 10, rng 9, rules 13, version 3, resolution 14, replay 12, gameplay 7, session 16, levels_validation 10, levels_curated 13, specials_data 10, specials_activation 13, specials_integration 17, combos 18, combos_integration 7, blockers 16, blockers_layers 6, blockers_integration 6, objectives 9, tokens 8, objectives_integration 8, hints 8, boosters 11, boosters_integration 11, save 18) |
+| Run unit tests | `bash tools/test.sh` | 2026-08-14 — exit 0, 286/287 passing (board 10, rng 9, rules 13, version 3, resolution 14, replay 12, gameplay 7, session 16, levels_validation 10, levels_curated 13, specials_data 10, specials_activation 13, specials_integration 16, combos 18, combos_integration 7, blockers 16, blockers_layers 6, blockers_integration 6, objectives 9, tokens 8, objectives_integration 8, hints 8, boosters 11, boosters_integration 11, save 18, progression 15) |
 | Lint GDScript | `gdlint scripts/ tests/` | 2026-08-13 — Step 13 new files lint clean; 5 pre-existing errors from Steps 05-06 remain (4 from before Step 13, plus 1 new enum-after-class error of the same family). Out of scope for Step 13. |
 | One-shot CI run | `bash tools/ci.sh` | 2026-08-13 — verify+disk+tests pass; lint fails on 8 pre-existing Step 05-06 errors |
 | Android APK export | `tools/build/godot/godot --headless --path . --export-debug "Android Debug" "build/test.apk"` | 2026-08-13 — blocked by Godot 4.3 generic "configuration errors" message. See Step 12 Blockers in `docs/11-implementation-roadmap.md`. |
