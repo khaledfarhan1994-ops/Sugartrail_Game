@@ -490,7 +490,7 @@ zero new lint errors.
 
 ### Step 17: Add hints and optional earned boosters
 
-Status: Not started
+Status: Done
 
 Goal: Provide assistance without making levels dependent on inventory.
 
@@ -507,6 +507,28 @@ Acceptance:
 - Booster cancellation does not consume inventory; confirmed use is atomic.
 - Tests cover zero inventory, targeting edges, replay, objectives, and combos.
 - Validation can prove a level without using boosters.
+
+Done notes:
+
+- `SugartrailHints.suggest(board, rng, limit)` clones the board + RNG
+  per candidate swap, simulates resolution, scores per event kind,
+  and returns the top-N sorted by score descending with a stable
+  lex tiebreaker. Reasons map to known labels. Never mutates state.
+- `SugartrailBooster.BoosterPack` carries inventory per BoosterKind
+  with a pending flag. Two-phase use: `request_use` marks pending,
+  `cancel` clears without consuming, `confirm` is atomic and
+  decrements inventory by 1. Launch set is SWAP_RETRY.
+- `Session` grows `request_booster`, `cancel_booster`,
+  `confirm_booster`, `_apply_swap_retry`. SWAP_RETRY restores the
+  pre-swap board from a snapshot captured in `attempt_swap`,
+  refunds the move, and removes the swap from the action log so
+  retries cannot be applied twice to the same swap.
+- Replay supports `USE_BOOSTER` and `CANCEL_BOOSTER`. SWAP_RETRY
+  replays by restoring from `extra.pre_swap_board`.
+- Engine bumped to 0.6.0; replay fixtures bumped to 0.6.0-test.
+- 30 new fixtures (test_hints, test_boosters, test_boosters_integration).
+  254 total tests (253 passing + 1 risky/pending for unreachable
+  deadlock precondition). Zero new lint errors.
 
 References: `01-product-requirements.md`, `02-game-design.md`.
 

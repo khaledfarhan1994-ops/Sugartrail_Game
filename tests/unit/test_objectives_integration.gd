@@ -126,7 +126,7 @@ func test_schema_rejects_target_layers_above_frosting_layers() -> void:
 	# validation still passes so the soft target is recorded.
 	assert_true(r.ok)
 
-# G. Engine version gate: 0.5.0.
+# G. Engine version gate: 0.6.0.
 
-func test_engine_version_is_0_5_0() -> void:
-	assert_eq(Version.engine_version(), "0.5.0")
+func test_engine_version_is_0_6_0() -> void:
+	assert_eq(Version.engine_version(), "0.6.0")

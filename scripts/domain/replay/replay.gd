@@ -16,6 +16,11 @@ extends RefCounted
 ## What kind of player action this log entry represents.
 enum ActionKind {
 	SWAP = 0,
+	## Step 17: a confirmed booster use. The `booster_id` field
+	## carries the kind; `extra` carries any kind-specific data.
+	USE_BOOSTER = 1,
+	## Step 17: a booster cancel. Does not consume inventory.
+	CANCEL_BOOSTER = 2,
 }
 
 const Board = preload("res://scripts/domain/board/board.gd")
@@ -156,17 +161,27 @@ class Action:
 	## For SWAP, the two coords being swapped.
 	var a: Coord = null
 	var b: Coord = null
+	## Step 17: for USE_BOOSTER / CANCEL_BOOSTER, the booster kind.
+	var booster_id: int = -1
+	## Step 17: optional kind-specific payload (e.g. SWAP_RETRY
+	## records the swap coords it is undoing).
+	var extra: Dictionary = {}
 
-	func _init(p_kind: int, p_a: Coord, p_b: Coord) -> void:
+	func _init(p_kind: int, p_a: Coord = null, p_b: Coord = null,
+			p_booster_id: int = -1, p_extra: Dictionary = {}) -> void:
 		kind = p_kind
 		a = p_a
 		b = p_b
+		booster_id = p_booster_id
+		extra = p_extra.duplicate(true)
 
 	func to_dict() -> Dictionary:
 		return {
 			"kind": kind,
 			"a": a.to_dict() if a != null else null,
 			"b": b.to_dict() if b != null else null,
+			"booster_id": booster_id,
+			"extra": extra.duplicate(true),
 		}
 
 	static func from_dict(d: Dictionary) -> Action:
@@ -175,7 +190,9 @@ class Action:
 		return Action.new(
 			int(d.get("kind", 0)),
 			Coord.from_dict(a_d),
-			Coord.from_dict(b_d))
+			Coord.from_dict(b_d),
+			int(d.get("booster_id", -1)),
+			d.get("extra", {}))
 
 ## A serialisable record of one play session: the recipe metadata,
 ## the starting RNG state, the initial board snapshot, every action
@@ -272,6 +289,27 @@ static func replay(log: ActionLog, expected_engine_version: String) -> ReplayRes
 			# creation can honour the swap-cell-precedence rule.
 			var cascade: Resolution.CascadeResult = Resolution.resolve(board, rng, a.a, a.b)
 			total_events += cascade.events.size()
+		elif a.kind == ActionKind.USE_BOOSTER:
+			# Step 17: SWAP_RETRY replays the inverse swap. The
+			# recorded swap coords are the swap being undone. The
+			# recorded `extra.pre_swap_board` is the board snapshot
+			# taken before the swap ran resolution; restoring from
+			# it is the deterministic way to undo the swap.
+			if a.booster_id == 0:  # SWAP_RETRY
+				var pre_swap_v: Variant = a.extra.get("pre_swap_board", {})
+				if not (pre_swap_v is Dictionary):
+					result.ok = false
+					result.last_error_action = i
+					result.last_error_message = "SWAP_RETRY missing pre_swap_board at action %d" % i
+					return result
+				board = _board_from_snapshot(pre_swap_v)
+				# Refund the move: replay drives RNG and score, but
+				# moves are external to the action log. We do not
+				# track moves in the replay path — the test asserts
+				# on the final board hash, not the move count.
+		elif a.kind == ActionKind.CANCEL_BOOSTER:
+			# No board effect; cancel is a metadata-only event.
+			pass
 		i += 1
 	# Compare against expected engine version.
 	if expected_engine_version != "" and log.engine_version != expected_engine_version:

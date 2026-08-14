@@ -39,6 +39,7 @@ const Rules = preload("res://scripts/domain/rules/rules.gd")
 const Resolution = preload("res://scripts/domain/rules/resolution.gd")
 const Replay = preload("res://scripts/domain/replay/replay.gd")
 const Rng = preload("res://scripts/domain/rng/rng.gd")
+const Booster = preload("res://scripts/domain/boosters/boosters.gd")
 const Coord = Board.CellCoord
 const Piece = Board.Piece
 
@@ -171,6 +172,8 @@ class Session:
 	var actions: Array = []
 	## RNG instance used for refill. Owned by the session.
 	var rng: Rng = null
+	## Step 17: the booster pack the player owns for this session.
+	var booster_pack: Booster.BoosterPack = null
 
 	## Back-compat: legacy callers expect `session.objective` to be
 	## a single Objective. We expose objectives[0] for that purpose.
@@ -216,11 +219,17 @@ class Session:
 			return false
 		if not Rules.is_orthogonal_neighbor(a, b):
 			return false
+		# Step 17: snapshot the board BEFORE the swap so a
+		# SWAP_RETRY can restore it. The snapshot is recorded on
+		# the SWAP action's `extra` dict so it is deterministic
+		# and round-trips through the action log.
+		var pre_swap_snap: Dictionary = board.to_snapshot()
 		if not Rules.try_swap(board, a, b):
 			return false
 		# Record the action BEFORE resolving, so the log captures
 		# exactly what the player did.
-		actions.append(Replay.Action.new(Replay.ActionKind.SWAP, a, b))
+		actions.append(Replay.Action.new(Replay.ActionKind.SWAP, a, b,
+				-1, {"pre_swap_board": pre_swap_snap}))
 		moves_remaining -= 1
 		state = State.RESOLVING
 		# First, count pieces removed by the swap itself. try_swap
@@ -236,6 +245,92 @@ class Session:
 			state = State.LOST
 		else:
 			state = State.READY
+		return true
+
+	## Step 17: request a booster use. Two-phase: this marks the
+	## booster as pending; the presentation calls confirm_booster()
+	## after the player taps confirm. Returns true if the booster
+	## kind exists and the inventory is > 0.
+	func request_booster(kind: int) -> bool:
+		if state != State.READY:
+			return false
+		if booster_pack == null:
+			return false
+		return booster_pack.request_use(kind)
+
+	## Step 17: cancel a pending booster use. Inventory is NOT
+	## consumed. Returns true if a pending use was cleared.
+	func cancel_booster(kind: int) -> bool:
+		if booster_pack == null:
+			return false
+		var ok: bool = booster_pack.cancel(kind)
+		if ok:
+			actions.append(Replay.Action.new(Replay.ActionKind.CANCEL_BOOSTER,
+					null, null, kind))
+		return ok
+
+	## Step 17: confirm a pending booster use. Inventory
+	## decrements by 1 and the booster effect applies. Returns
+	## true on success. SWAP_RETRY undoes the previous swap and
+	## refunds the move. MUST be called from READY state. The
+	## booster must already be pending (set via request_booster).
+	func confirm_booster(kind: int) -> bool:
+		if not _can_confirm_booster(kind):
+			return false
+		# Apply the booster effect BEFORE consuming inventory so a
+		# failed effect leaves the inventory intact.
+		match kind:
+			Booster.BoosterKind.SWAP_RETRY:
+				if not _apply_swap_retry():
+					booster_pack.cancel(kind)
+					return false
+		if not booster_pack.confirm(kind):
+			return false
+		actions.append(Replay.Action.new(Replay.ActionKind.USE_BOOSTER,
+				null, null, kind))
+		return true
+
+	## Step 17 helper: precondition for confirm_booster. Returns
+	## true iff state is READY, the booster pack exists, the booster
+	## is pending, and the booster has inventory > 0.
+	func _can_confirm_booster(kind: int) -> bool:
+		if state != State.READY:
+			return false
+		if booster_pack == null:
+			return false
+		var b: Booster.Booster = booster_pack._get_or_create(kind)
+		return b.pending and b.can_use()
+
+	## Step 17: SWAP_RETRY effect. The previous action must be a
+	## SWAP. We undo it by restoring the board to its pre-swap
+	## state (carried on the action's `extra.pre_swap_board`),
+	## re-adding the move, and removing the action from the log so
+	## a retry cannot be applied to the same swap twice.
+	func _apply_swap_retry() -> bool:
+		# Find the most recent SWAP action.
+		var last_swap_idx: int = -1
+		for i in range(actions.size() - 1, -1, -1):
+			var act: Replay.Action = actions[i]
+			if act.kind == Replay.ActionKind.SWAP:
+				last_swap_idx = i
+				break
+		if last_swap_idx < 0:
+			return false
+		var act: Replay.Action = actions[last_swap_idx]
+		var pre_swap: Variant = act.extra.get("pre_swap_board", {})
+		if not (pre_swap is Dictionary):
+			return false
+		# Restore the board from the pre-swap snapshot. This rolls
+		# back everything resolution did after the swap: cleared
+		# pieces, gravity, refill, cascade events, score changes
+		# from that resolution are NOT restored (intentional — we
+		# only refund the move and undo the board layout).
+		var restored: Board = Replay._board_from_snapshot(pre_swap)
+		board = restored
+		# Refund the move and remove the swap action so a retry
+		# cannot be applied to the same swap twice.
+		moves_remaining += 1
+		actions.remove_at(last_swap_idx)
 		return true
 
 	## Apply the resolution events to each objective. Each event
@@ -326,6 +421,9 @@ class Session:
 			var obj: Objective = o
 			obj.progress = 0
 		actions.clear()
+		# Step 17: rebuild the booster pack from the recipe so retry
+		# returns the player to the same starting inventory.
+		booster_pack = SugartrailSession._booster_pack_from_recipe(recipe)
 		old_rng = null  # release
 
 	func stars_earned() -> int:
@@ -348,6 +446,7 @@ class Session:
 			"rng_state": rng.to_int(),
 			"board": board.to_snapshot(),
 			"action_count": actions.size(),
+			"booster_pack": booster_pack.to_dict() if booster_pack != null else {},
 		}
 
 ## Construct a session from a recipe dictionary. The recipe may use
@@ -385,8 +484,28 @@ static func from_recipe(recipe: Dictionary) -> Session:
 		int(recipe.get("star_three", 300)))
 	var moves: int = int(recipe.get("moves", 20))
 	var session := Session.new(recipe, board, objectives, stars, moves, rng)
+	# Step 17: read optional booster inventory from the recipe
+	# (level design can grant a small starter pack). Default empty.
+	session.booster_pack = _booster_pack_from_recipe(recipe)
 	session.state = State.READY
 	return session
+
+## Build the booster pack from a recipe. Optional recipe field:
+## `boosters` is an Array of {kind: int, count: int} entries.
+## Defaults to an empty pack if the field is absent.
+static func _booster_pack_from_recipe(recipe: Dictionary) -> Booster.BoosterPack:
+	var entries_v: Variant = recipe.get("boosters", [])
+	if not (entries_v is Array):
+		return Booster.BoosterPack.new()
+	var pack := Booster.BoosterPack.new()
+	for e in entries_v:
+		var ed: Dictionary = e
+		var kind_v: int = int(ed.get("kind", -1))
+		var count_v: int = int(ed.get("count", 0))
+		if kind_v < 0 or count_v <= 0:
+			continue
+		pack.boosters[kind_v] = Booster.Booster.new(kind_v, count_v)
+	return pack
 
 ## Build the objectives list from a recipe. Prefers the explicit
 ## `objectives` array (v3); falls back to a single COLLECT_KIND

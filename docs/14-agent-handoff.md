@@ -34,10 +34,10 @@ record the answer in `decisions.md` and `work-log.md`.
 ## Current execution state
 
 - Current phase: Phase D, Complete Gameplay Rules.
-- Current step: Step 17.
-- Step status: Steps 01-16 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
-- Last completed step: Step 16 (remaining launch objectives: multi-objective AND-joined Session.objectives; ObjectiveKind adds CLEAR_LAYERS + RELEASE_TOKEN; Board.tokens parallel array with TOKEN_RELEASE event; recipe schema v3 with auto-migration v2→v3; three new curated levels l13/l14/l15; 26 new fixtures; engine bumped to 0.5.0).
-- Next action: execute Step 17 — hints and optional earned boosters.
+- Current step: Step 18.
+- Step status: Steps 01-17 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
+- Last completed step: Step 17 (hints + optional earned boosters: SugartrailHints deterministic legal-move ranker; SugartrailBooster BoosterPack with two-phase request/cancel/confirm; SWAP_RETRY restores pre-swap board; Session grows booster_pack + booster use API; replay supports USE_BOOSTER + CANCEL_BOOSTER; engine bumped to 0.6.0; 30 new fixtures for 254 total tests).
+- Next action: execute Step 18 — robust local persistence.
 
 ## Build, test, and verification commands
 

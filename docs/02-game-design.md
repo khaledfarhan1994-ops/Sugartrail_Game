@@ -167,6 +167,39 @@ not a counter).
 - Every level has a minimum validated solution margin, not merely one possible solution.
 - A level cannot require a particular random refill or a booster.
 - Hints may suggest a legal move but must not silently play it.
+
+### Hints (Step 17)
+
+The Hint button surfaces **one legal move at a time**, ranked. The
+ranker is a deterministic, pure function of the current board + RNG
+that never mutates state; it returns 0..N suggestions, each tagged
+with the reason that pushed its score high (`legal`, `objective`,
+`shield-break`, `token-release`, `cascade`). The presentation is
+free to animate the move with a glow or arrow but must not apply
+the move on the player's behalf until they tap the board.
+
+### Boosters (Step 17)
+
+Booster inventory is per-session: levels may grant a starter pack
+in the recipe (the `boosters` field) and progression rewards add
+to it later. Boosts are **assists** — a level never requires them.
+The launch set has a single entry:
+
+- **Swap Retry** (`SWAP_RETRY`) — undo the player's most recent
+  swap, refund the move, and remove the swap from the replay log
+  so a retry cannot be applied twice to the same swap.
+
+Booster use is two-phase:
+
+1. The presentation calls `request_use(kind)` (marks the booster
+   PENDING; does not consume inventory).
+2. The player confirms or cancels the use. `cancel` clears the
+   pending flag (no inventory cost). `confirm` is atomic — the
+   effect runs once; on success inventory decrements by 1.
+
+Boosters are domain entities, not presentation-only: every confirmed
+use is recorded in the action log so the replay reproduces both the
+swap that was undone and the (later) replayed effects.
 - Retry is always available without a penalty.
 
 ## 6. Progression
