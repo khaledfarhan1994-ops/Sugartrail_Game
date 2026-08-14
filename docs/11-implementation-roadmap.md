@@ -536,7 +536,7 @@ References: `01-product-requirements.md`, `02-game-design.md`.
 
 ### Step 18: Implement robust local persistence
 
-Status: Not started
+Status: Done
 
 Goal: Safely preserve progression, inventory, settings, and active session state.
 
@@ -552,6 +552,25 @@ Acceptance:
 - Tests cover fresh install, normal reload, interrupted write, corrupt primary, corrupt backup, migration, invalid ranges, and reset.
 - Migration failure preserves the last valid save.
 - Save operations do not depend on network or device identity.
+
+Done notes:
+
+- `SugartrailSaveData` is a versioned local save document (schema v1)
+  with LevelRecord, InventoryRecord (per-kind + total caps),
+  SettingsRecord (sound/music/haptics + accessibility flags + language),
+  TutorialFlags, ActiveSession (recipe_id + snapshot + saved_at),
+  coins, and player_name. SaveMetadata carries schema_version +
+  FNV-1a 32-bit checksum + saved_at + engine_version + write_count.
+  `validate` catches out-of-range stars, out-of-range inventory,
+  negative coins, negative scores. `migrate` is forward-only.
+- `SugartrailSaveIO` owns the atomic write dance: serialise to
+  `<path>.tmp`, flush, rotate the previous primary to `<path>.bak`,
+  rename tempfile to `<path>`. `load` tries primary first then
+  backup; returns IoResult (never throws). `reset` removes both
+  files; `has_save` reports either-or existence.
+- 18 new fixtures in test_save.gd. Total 272/272 (271 passing + 1
+  risky/pending for the pre-existing unreachable deadlock precondition).
+  Zero new lint errors. Engine stays at 0.6.0 (no replay schema change).
 
 References: `03-technical-architecture.md`, `07-quality-strategy.md`.
 

@@ -202,6 +202,35 @@ use is recorded in the action log so the replay reproduces both the
 swap that was undone and the (later) replayed effects.
 - Retry is always available without a penalty.
 
+## 5a. Local persistence (Step 18)
+
+Player data is stored in a versioned, locally-resident `SaveData`
+document. The persistence layer is offline-only (no network, no
+device identity), survives interrupted writes (atomic write to a
+temp file + rename + one previous backup), and self-recovers from
+corruption by falling back to the backup. The document is
+schema-versioned and validated on load; forward-only migrations
+are added with each new schema version.
+
+The save document carries:
+
+- **Level records** — best score, highest stars, completion flag,
+  last-played timestamp per level.
+- **Booster inventory** — current counts per BoosterKind (bounded
+  by per-kind and total caps to defeat corrupt-save exploits).
+- **Settings** — audio + haptics toggles, accessibility flags
+  (reduced motion, high contrast, large text), language.
+- **Tutorial flags** — which prompts have been seen.
+- **Active session** — recipe id + the full `Session.snapshot_state()`
+  dictionary so a level interrupted by an OS event can be resumed.
+- **Coins, player name** — soft currency and display name.
+- **Integrity metadata** — schema version, FNV-1a 32-bit checksum
+  of the canonical envelope, save timestamp, engine version,
+  monotonic write counter.
+
+Reset progress is always available and clears the save atomically
+after an explicit confirmation.
+
 ## 6. Progression
 
 The map contains chapters, nodes, milestone gates, and optional replay. Stars

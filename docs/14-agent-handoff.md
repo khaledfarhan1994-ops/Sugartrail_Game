@@ -33,11 +33,11 @@ record the answer in `decisions.md` and `work-log.md`.
 
 ## Current execution state
 
-- Current phase: Phase D, Complete Gameplay Rules.
-- Current step: Step 18.
-- Step status: Steps 01-17 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
-- Last completed step: Step 17 (hints + optional earned boosters: SugartrailHints deterministic legal-move ranker; SugartrailBooster BoosterPack with two-phase request/cancel/confirm; SWAP_RETRY restores pre-swap board; Session grows booster_pack + booster use API; replay supports USE_BOOSTER + CANCEL_BOOSTER; engine bumped to 0.6.0; 30 new fixtures for 254 total tests).
-- Next action: execute Step 18 — robust local persistence.
+- Current phase: Phase E, Player Progress and Experience.
+- Current step: Step 19.
+- Step status: Steps 01-18 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
+- Last completed step: Step 18 (robust local persistence: SugartrailSaveData versioned local save schema v1 with FNV-1a checksum + integrity metadata; SaveIO atomic write + backup rotation + load recovery; 18 new fixtures for 272 total tests; engine stays at 0.6.0).
+- Next action: execute Step 19 — world map and progression.
 
 ## Build, test, and verification commands
 
