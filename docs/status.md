@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-08-14 (Step 15 complete; Step 16 next)
+Last updated: 2026-08-14 (Step 16 complete; Step 17 next)
 
 ## Current milestone
 
@@ -45,7 +45,7 @@ The engine version is bumped from 0.3.0 to 0.4.0.
 | Headless project import | `tools/build/godot/godot --headless --import` | 2026-08-13 — pass (Step 01 + Step 02 acceptance) |
 | Headless boot scene | `tools/build/godot/godot --headless --path . --quit-after 1 res://scenes/boot/boot.tscn` | 2026-08-13 — pass; boot.gd printed ready timestamp |
 | Vertical slice smoke profile | `tools/build/godot/godot --headless --path . res://scenes/vertical_slice/vertical_slice_smoke.tscn` | 2026-08-13 — pass; emits STEP12_LOAD, STEP12_SWAP (×8), STEP12_WIN, STEP12_END. Level 1 won in 684 ms with 8 swaps (score 390, seed 364017463632246932). |
-| Run unit tests | `bash tools/test.sh` | 2026-08-14 — exit 0, 198/198 passing (board 10, rng 9, rules 13, version 3, resolution 14, replay 12, gameplay 7, session 16, levels_validation 10, levels_curated 13, specials_data 10, specials_activation 13, specials_integration 17, combos 18, combos_integration 7, blockers 16, blockers_layers 6, blockers_integration 6) |
+| Run unit tests | `bash tools/test.sh` | 2026-08-14 — exit 0, 224/224 passing (board 10, rng 9, rules 13, version 3, resolution 14, replay 12, gameplay 7, session 16, levels_validation 10, levels_curated 13, specials_data 10, specials_activation 13, specials_integration 17, combos 18, combos_integration 7, blockers 16, blockers_layers 6, blockers_integration 6, objectives 9, tokens 8, objectives_integration 8) |
 | Lint GDScript | `gdlint scripts/ tests/` | 2026-08-13 — Step 13 new files lint clean; 5 pre-existing errors from Steps 05-06 remain (4 from before Step 13, plus 1 new enum-after-class error of the same family). Out of scope for Step 13. |
 | One-shot CI run | `bash tools/ci.sh` | 2026-08-13 — verify+disk+tests pass; lint fails on 8 pre-existing Step 05-06 errors |
 | Android APK export | `tools/build/godot/godot --headless --path . --export-debug "Android Debug" "build/test.apk"` | 2026-08-13 — blocked by Godot 4.3 generic "configuration errors" message. See Step 12 Blockers in `docs/11-implementation-roadmap.md`. |

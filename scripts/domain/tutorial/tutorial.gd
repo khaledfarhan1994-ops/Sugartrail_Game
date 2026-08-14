@@ -141,6 +141,16 @@ class Catalog:
 	const PROMPT_LOCKED_INTRO: String = "tutorial.prompt.locked.intro"
 	const PROMPT_LOCKED_RELEASE: String = "tutorial.prompt.locked.release"
 
+	## Step 16: new objective kinds — clear frosting layers, release
+	## trapped tokens, hit a score target.
+	const STRAP_LAYERS_INTRO: String = "tutorial.layers.intro"
+	const PROMPT_LAYERS_INTRO: String = "tutorial.prompt.layers.intro"
+	const PROMPT_LAYERS_BREAK: String = "tutorial.prompt.layers.break"
+	const STRAP_TOKENS_INTRO: String = "tutorial.tokens.intro"
+	const PROMPT_TOKENS_INTRO: String = "tutorial.prompt.tokens.intro"
+	const PROMPT_TOKENS_RELEASE: String = "tutorial.prompt.tokens.release"
+	const PROMPT_SCORE_TARGET: String = "tutorial.prompt.score.target"
+
 	## Known keys for the first twelve levels. The tests use this set
 	## to verify that every prompt key resolves to a known English
 	## string.
@@ -162,6 +172,13 @@ class Catalog:
 			STRAP_LOCKED_INTRO,
 			PROMPT_LOCKED_INTRO,
 			PROMPT_LOCKED_RELEASE,
+			STRAP_LAYERS_INTRO,
+			PROMPT_LAYERS_INTRO,
+			PROMPT_LAYERS_BREAK,
+			STRAP_TOKENS_INTRO,
+			PROMPT_TOKENS_INTRO,
+			PROMPT_TOKENS_RELEASE,
+			PROMPT_SCORE_TARGET,
 		]
 
 ## English translation strings. Step 21 replaces this with a real
@@ -186,4 +203,11 @@ static func english(key: String) -> String:
 		Catalog.STRAP_LOCKED_INTRO: return "Some pieces are locked in cages."
 		Catalog.PROMPT_LOCKED_INTRO: return "Locked pieces won't budge from a regular match."
 		Catalog.PROMPT_LOCKED_RELEASE: return "Specials and combos break the lock."
+		Catalog.STRAP_LAYERS_INTRO: return "Some levels need layers of frosting cleared."
+		Catalog.PROMPT_LAYERS_INTRO: return "Each frosting match chips a layer — clear them all to win."
+		Catalog.PROMPT_LAYERS_BREAK: return "Every cleared layer counts toward your goal."
+		Catalog.STRAP_TOKENS_INTRO: return "Trapped tokens wait for the right piece."
+		Catalog.PROMPT_TOKENS_INTRO: return "Match the colour underneath the token to release it."
+		Catalog.PROMPT_TOKENS_RELEASE: return "Released tokens count toward your goal, scoring bonus points."
+		Catalog.PROMPT_SCORE_TARGET: return "Some levels need a score, not a set of pieces."
 		_: return ""

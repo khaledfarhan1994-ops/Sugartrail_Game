@@ -1,0 +1,32 @@
+{
+  "recipe_id": "l15-mixed-objectives",
+  "version": 3,
+  "chapter": 1,
+  "index_in_chapter": 4,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 4,
+  "seed": 1501,
+  "moves": 25,
+  "objectives": [
+    {"kind": 0, "target_kind": 0, "target_total": 6},
+    {"kind": 2, "target_total": 4, "target_layers": 4}
+  ],
+  "target_kind": 0,
+  "target_total": 6,
+  "star_one": 150,
+  "star_two": 300,
+  "star_three": 480,
+  "intro_text": "tutorial.layers.intro",
+  "tutorial": [
+    "tutorial.prompt.objective",
+    "tutorial.prompt.layers.intro",
+    "tutorial.prompt.score.target"
+  ],
+  "avoid_initial_matches": true,
+  "blockers": [
+    {"x": 0, "y": 7, "type": "FROSTING", "layers": 2},
+    {"x": 1, "y": 7, "type": "FROSTING", "layers": 1},
+    {"x": 4, "y": 7, "type": "FROSTING", "layers": 1}
+  ]
+}

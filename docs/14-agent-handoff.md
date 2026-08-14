@@ -34,10 +34,10 @@ record the answer in `decisions.md` and `work-log.md`.
 ## Current execution state
 
 - Current phase: Phase D, Complete Gameplay Rules.
-- Current step: Step 16.
-- Step status: Steps 01-15 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
-- Last completed step: Step 15 (launch blockers: FROSTING cell kind + per-cell frosting_layers/locked fields; BLOCKER_DAMAGE/BLOCKER_BREAK events; locked cells block match removal; recipe schema v2 with auto-migration v1→v2; two new curated levels l11/l12; ~28 new fixtures; engine bumped to 0.4.0).
-- Next action: execute Step 16 — implement remaining launch objectives (clear-layers, collect targets, release tokens, score targets).
+- Current step: Step 17.
+- Step status: Steps 01-16 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
+- Last completed step: Step 16 (remaining launch objectives: multi-objective AND-joined Session.objectives; ObjectiveKind adds CLEAR_LAYERS + RELEASE_TOKEN; Board.tokens parallel array with TOKEN_RELEASE event; recipe schema v3 with auto-migration v2→v3; three new curated levels l13/l14/l15; 26 new fixtures; engine bumped to 0.5.0).
+- Next action: execute Step 17 — hints and optional earned boosters.
 
 ## Build, test, and verification commands
 

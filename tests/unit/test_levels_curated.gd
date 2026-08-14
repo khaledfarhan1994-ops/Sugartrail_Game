@@ -25,6 +25,9 @@ const CURATED_IDS: Array = [
 	"l10-final",
 	"l11-frosting-intro",
 	"l12-locked-cells",
+	"l13-clear-layers",
+	"l14-release-token",
+	"l15-mixed-objectives",
 ]
 
 # ----------------------------------------------------------------------------

@@ -104,6 +104,27 @@ Initial objectives:
 - Release trapped tokens to the bottom.
 - Reach a score target within a move limit.
 
+### Launch objective kinds (Step 10–16)
+
+| Kind | Goal | Progress source | Completion |
+|------|------|-----------------|------------|
+| `COLLECT_KIND` | Gather N pieces of a target `kind_id` | Every `REMOVE` of that kind | `progress >= target_total` |
+| `REACH_SCORE` | Reach `target_score` within the move budget | The session's running score | `progress >= target_score` |
+| `CLEAR_LAYERS` | Clear N frosting layers | Every `BLOCKER_DAMAGE` and `BLOCKER_BREAK` event | `progress >= target_total` |
+| `RELEASE_TOKEN` | Release N trapped tokens | Every `TOKEN_RELEASE` event | `progress >= target_total` |
+
+A session may carry multiple objectives; the level is won when **all**
+are complete (AND-joined). A level can mix kinds (e.g. `COLLECT_KIND`
++ `CLEAR_LAYERS` for l15).
+
+Scoring rules:
+
+- `COLLECT_KIND` / `REACH_SCORE`: 10 points per piece removed + 5
+  per cascade step beyond the first.
+- `CLEAR_LAYERS`: 10 + 5 cascade, **plus 15** per frosting layer
+  cleared.
+- `RELEASE_TOKEN`: 10 + 5 cascade, **plus 50** per released token.
+
 Initial blockers:
 
 - One-hit frosting.

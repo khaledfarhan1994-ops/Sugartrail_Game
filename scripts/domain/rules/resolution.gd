@@ -32,6 +32,7 @@ enum EventKind {
 	SPECIAL_ACTIVATE = 6,
 	BLOCKER_DAMAGE = 7,
 	BLOCKER_BREAK = 8,
+	TOKEN_RELEASE = 9,
 }
 
 # ----------------------------------------------------------------------------
@@ -129,10 +130,25 @@ static func resolve(board: Board, rng: Rng, swap_a: Coord = null, swap_b: Coord 
 		result.total_removed += removed_this_cycle
 		_apply_gravity(board, result, cycle - 1)
 		_refill(board, rng, result, cycle - 1)
+		# Step 16: check trapped tokens after gravity + refill settle.
+		# A token is released when a matching piece now sits under
+		# it. Released tokens emit a TOKEN_RELEASE event and are
+		# removed from Board.tokens. The loop restarts so the same
+		# resolve call still cascades if the released pieces also
+		# form a match (rare but supported).
+		_check_tokens(board, result, cycle - 1)
 		result.events.append(DomainEvent.new(EventKind.CASCADE_END, [], -1, cycle - 1))
 		# Cascade cycles after the first have no player-action context.
 		swap_a = null
 		swap_b = null
+	# Step 16: also check tokens at the very end (no cascade left),
+	# in case a single release-after-settle matters.
+	if board.tokens.size() > 0:
+		var final_cycle: int = cycle
+		result.events.append(DomainEvent.new(EventKind.CASCADE_START, [], -1, final_cycle))
+		_check_tokens(board, result, final_cycle)
+		result.events.append(DomainEvent.new(EventKind.CASCADE_END, [], -1, final_cycle))
+		cycle += 1
 	result.cycles = (1 if combo_emitted else 0) + cycle - 1
 	return result
 
@@ -432,6 +448,46 @@ static func _refill(board: Board, rng: Rng, result: CascadeResult, cascade_index
 				pass
 			result.events.append(DomainEvent.new(
 				EventKind.SPAWN, [c], kind, cascade_index))
+
+# ----------------------------------------------------------------------------
+# Step 16: trapped-token release check
+# ----------------------------------------------------------------------------
+
+## Check every token on the board. A token is released when the
+## cell under it holds a piece whose kind_id matches the token's
+## `matching_kind` (or `matching_kind == -1` meaning "any piece").
+## Released tokens emit a TOKEN_RELEASE event and are removed from
+## Board.tokens. The `token_id` is encoded in `special_origin.x` so
+## the session can route the progress increment without growing
+## DomainEvent's payload (special_origin isn't used by TOKEN_RELEASE
+## events for any other purpose).
+static func _check_tokens(board: Board, result: CascadeResult,
+		cascade_index: int) -> void:
+	# Iterate over a copy because we mutate `board.tokens`.
+	var to_release: Array = []
+	for entry in board.tokens:
+		var ed: Dictionary = entry
+		var tx: int = int(ed.get("x", -1))
+		var ty: int = int(ed.get("y", -1))
+		if not board.in_bounds(tx, ty):
+			continue
+		var cc: Coord = Coord.new(tx, ty)
+		var cell: Cell = board.cell_at(cc)
+		if cell == null or not cell.is_piece():
+			continue
+		var matching_kind: int = int(ed.get("matching_kind", -1))
+		if matching_kind >= 0 and cell.piece.kind_id != matching_kind:
+			continue
+		to_release.append({"coord": cc, "id": int(ed.get("id", -1))})
+	for rel in to_release:
+		var rd: Dictionary = rel
+		var cc: Coord = rd["coord"]
+		var token_id_v: int = int(rd.get("id", -1))
+		board.remove_token_at(cc)
+		var id_coord: Coord = Coord.new(token_id_v, 0)
+		result.events.append(DomainEvent.new(
+				EventKind.TOKEN_RELEASE, [cc], -1, cascade_index,
+				-1, id_coord, []))
 
 # ----------------------------------------------------------------------------
 # Pure helpers (also used by tests and the upcoming generator/solver)

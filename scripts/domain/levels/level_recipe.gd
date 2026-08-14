@@ -22,7 +22,7 @@ extends RefCounted
 ## Schema rules enforced at validate():
 ##
 ##   recipe_id  : non-empty String
-##   version    : int == 2 (Step 15 bump)
+##   version    : int == 3 (Step 16 bump)
 ##   chapter    : int >= 0
 ##   index_in_chapter : int >= 0
 ##   board_w    : int 1..8
@@ -31,8 +31,15 @@ extends RefCounted
 ##   seed       : int (any value; seed reproducibility is the
 ##                contract, not the value)
 ##   moves      : int 1..200
-##   target_kind : int 0..(palette-1)
-##   target_total : int 1..(board_w * board_h)
+##   objectives : Array of objective entries (Step 16, optional).
+##                Each entry has the shape
+##                  {"kind": int (ObjectiveKind), "target_total": int,
+##                   "target_kind": int?, "target_score": int?,
+##                   "target_layers": int?, "token_id": int?}
+##                At least one objective is required; legacy
+##                single-objective recipes (target_kind +
+##                target_total) auto-migrate to a single
+##                COLLECT_KIND objective.
 ##   star_one   : int >= 0
 ##   star_two   : int >= star_one
 ##   star_three : int >= star_two
@@ -46,10 +53,16 @@ extends RefCounted
 ##                FROSTING uses layers 1..4; LOCKED uses layers 1
 ##                (informational). All entries must be in-bounds
 ##                and not overlap a BLOCKED cell.
+##   tokens     : Array of token entries (Step 16, optional). Each
+##                entry has the shape
+##                  {"x": int, "y": int, "id": int (>= 0),
+##                   "matching_kind": int (-1 = any, else 0..palette-1)}
+##                Tokens must be in-bounds and not overlap a BLOCKED
+##                or FROSTING cell.
 
 ## Recipe schema version. Increment when validation rules change
 ## incompatibly. Old recipes must be migrated before they are loaded.
-const SCHEMA_VERSION: int = 2
+const SCHEMA_VERSION: int = 3
 
 ## Result of validate(). ok == true means the recipe is loadable.
 class ValidationResult:
@@ -211,6 +224,81 @@ static func validate(raw: Dictionary) -> ValidationResult:
 					continue
 				seen_b[bkey] = true
 
+	# Step 16: optional tokens array. Validate shape, id uniqueness,
+	# matching_kind range, and bounds. Tokens cannot overlap BLOCKED
+	# or FROSTING cells.
+	if raw.has("tokens"):
+		var tokens_v: Variant = raw["tokens"]
+		if not (tokens_v is Array):
+			errors.append("tokens must be an Array")
+		else:
+			var tokens: Array = tokens_v
+			var seen_t := {}
+			for entry in tokens:
+				if not (entry is Dictionary):
+					errors.append("tokens entries must be Dictionaries")
+					continue
+				var td: Dictionary = entry
+				var tx: int = int(td.get("x", -1))
+				var ty: int = int(td.get("y", -1))
+				var t_id: int = int(td.get("id", -1))
+				var mk: int = int(td.get("matching_kind", -1))
+				if tx < 0 or tx >= w or ty < 0 or ty >= h:
+					errors.append("token at (%d,%d) out of bounds %dx%d" % [tx, ty, w, h])
+					continue
+				if t_id < 0:
+					errors.append("token at (%d,%d) has invalid id %d" % [tx, ty, t_id])
+					continue
+				if mk < -1 or mk >= palette:
+					errors.append("token at (%d,%d) has matching_kind %d (must be -1 or 0..%d)" % [
+						tx, ty, mk, palette - 1])
+					continue
+				var tkey: String = "%d,%d" % [tx, ty]
+				if seen_t.has(tkey):
+					errors.append("duplicate token at (%d,%d)" % [tx, ty])
+					continue
+				seen_t[tkey] = true
+
+	# Step 16: optional objectives array. Validate shape per kind.
+	if raw.has("objectives"):
+		var objs_v: Variant = raw["objectives"]
+		if not (objs_v is Array):
+			errors.append("objectives must be an Array")
+		else:
+			var objs: Array = objs_v
+			if objs.size() == 0:
+				errors.append("objectives must be non-empty")
+			for oentry in objs:
+				if not (oentry is Dictionary):
+					errors.append("objectives entries must be Dictionaries")
+					continue
+				var od: Dictionary = oentry
+				var okind: int = int(od.get("kind", -1))
+				if okind < 0 or okind > 3:
+					errors.append("objective has invalid kind %d (must be 0..3)" % okind)
+					continue
+				match okind:
+					0: # COLLECT_KIND
+						var tk: int = int(od.get("target_kind", -1))
+						if tk < 0 or tk >= palette:
+							errors.append("COLLECT_KIND objective has invalid target_kind %d" % tk)
+						var tt: int = int(od.get("target_total", 0))
+						if tt < 1 or tt > w * h:
+							errors.append("COLLECT_KIND target_total %d out of range 1..%d" % [
+								tt, w * h])
+					1: # REACH_SCORE
+						var ts: int = int(od.get("target_score", 0))
+						if ts < 1:
+							errors.append("REACH_SCORE target_score %d must be >= 1" % ts)
+					2: # CLEAR_LAYERS
+						var tl: int = int(od.get("target_layers", 0))
+						if tl < 1:
+							errors.append("CLEAR_LAYERS target_layers %d must be >= 1" % tl)
+					3: # RELEASE_TOKEN
+						var tti: int = int(od.get("target_total", 0))
+						if tti < 1:
+							errors.append("RELEASE_TOKEN target_total %d must be >= 1" % tti)
+
 	var ok: bool = errors.size() == 0
 	return ValidationResult.new(ok, errors, warnings)
 
@@ -243,6 +331,7 @@ static func load_from_file(path: String, out_errors: Array = []) -> Dictionary:
 	# Auto-migrate older versions to the current schema before
 	# validation. The migration chain runs forward-only.
 	recipe = migration_v1_to_v2(recipe)
+	recipe = migration_v2_to_v3(recipe)
 	var result: ValidationResult = validate(recipe)
 	if not result.ok:
 		for e in result.errors:
@@ -274,4 +363,29 @@ static func migration_v1_to_v2(raw: Dictionary) -> Dictionary:
 	out["version"] = SCHEMA_VERSION
 	if not out.has("blockers"):
 		out["blockers"] = []
+	return out
+
+## Step 16: migrate a v2 recipe to v3 by deriving an `objectives`
+## array from the legacy single `target_kind` + `target_total`
+## pair, and bumping version. Adds the empty `tokens` array. The
+## input is not mutated. Returns the input unchanged if already
+## at version >= 3.
+static func migration_v2_to_v3(raw: Dictionary) -> Dictionary:
+	if raw == null:
+		return raw
+	var version: int = int(raw.get("version", 2))
+	if version >= 3:
+		return raw
+	var out: Dictionary = raw.duplicate(true)
+	out["version"] = SCHEMA_VERSION
+	if not out.has("objectives"):
+		var legacy_obj := {
+			"kind": 0,
+			"target_kind": int(out.get("target_kind", 0)),
+			"target_total": int(out.get("target_total", 10)),
+			"progress": 0,
+		}
+		out["objectives"] = [legacy_obj]
+	if not out.has("tokens"):
+		out["tokens"] = []
 	return out

@@ -38,10 +38,10 @@ func test_replay_determinism_with_frosting() -> void:
 	assert_eq(h1, h2, "snapshot hash must be deterministic across replays")
 	assert_eq(r1.total_removed, r2.total_removed)
 
-# B. Engine version bump: 0.4.0.
+# B. Engine version bump: 0.5.0.
 
-func test_engine_version_is_0_4_0() -> void:
-	assert_eq(Version.engine_version(), "0.4.0")
+func test_engine_version_is_0_5_0() -> void:
+	assert_eq(Version.engine_version(), "0.5.0")
 
 # C. Schema v2 migration: v1 recipe without blockers loads with empty blockers.
 

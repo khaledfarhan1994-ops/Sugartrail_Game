@@ -1,0 +1,33 @@
+{
+  "recipe_id": "l13-clear-layers",
+  "version": 3,
+  "chapter": 1,
+  "index_in_chapter": 2,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 4,
+  "seed": 1301,
+  "moves": 22,
+  "objectives": [
+    {"kind": 2, "target_total": 8, "target_layers": 8}
+  ],
+  "target_kind": 0,
+  "target_total": 8,
+  "star_one": 120,
+  "star_two": 240,
+  "star_three": 400,
+  "intro_text": "tutorial.layers.intro",
+  "tutorial": [
+    "tutorial.prompt.layers.intro",
+    "tutorial.prompt.layers.break"
+  ],
+  "avoid_initial_matches": true,
+  "blockers": [
+    {"x": 0, "y": 6, "type": "FROSTING", "layers": 2},
+    {"x": 1, "y": 6, "type": "FROSTING", "layers": 2},
+    {"x": 2, "y": 6, "type": "FROSTING", "layers": 1},
+    {"x": 3, "y": 6, "type": "FROSTING", "layers": 1},
+    {"x": 4, "y": 6, "type": "FROSTING", "layers": 1},
+    {"x": 5, "y": 6, "type": "FROSTING", "layers": 1}
+  ]
+}

@@ -8,7 +8,7 @@ extends RefCounted
 ## before any real rules are written.
 
 const ENGINE_MAJOR := 0
-const ENGINE_MINOR := 4
+const ENGINE_MINOR := 5
 const ENGINE_PATCH := 0
 
 static func engine_version() -> String:

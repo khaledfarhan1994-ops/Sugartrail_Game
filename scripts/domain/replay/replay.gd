@@ -300,6 +300,7 @@ static func _compute_result_hash(board: Board, rng_state: int, total_events: int
 ## Restore a SugartrailBoard from its to_snapshot() representation.
 ## Step 13: cells with a "special" key reconstruct a SpecialPiece
 ## carrying the same SpecialKind / orientation / needs_activation.
+## Step 16: tokens roundtrip through the `tokens` array on the snapshot.
 static func _board_from_snapshot(snap: Dictionary) -> Board:
 	var w: int = int(snap.get("width", 0))
 	var h: int = int(snap.get("height", 0))
@@ -325,6 +326,12 @@ static func _board_from_snapshot(snap: Dictionary) -> Board:
 			else:
 				board.set_piece(c, Piece.new(piece_kind))
 		# EMPTY cells stay EMPTY (default), BLOCKED stays BLOCKED.
+	# Step 16: rebuild tokens from the snapshot.
+	var tokens_in: Array = snap.get("tokens", [])
+	for td in tokens_in:
+		var tdd: Dictionary = td
+		board.add_token(int(tdd.get("x", 0)), int(tdd.get("y", 0)),
+				int(tdd.get("id", -1)), int(tdd.get("matching_kind", -1)))
 	return board
 
 ## Compare two replay results by result_hash. Returns true if equal.

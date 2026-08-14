@@ -1,0 +1,29 @@
+{
+  "recipe_id": "l14-release-token",
+  "version": 3,
+  "chapter": 1,
+  "index_in_chapter": 3,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 4,
+  "seed": 1401,
+  "moves": 20,
+  "objectives": [
+    {"kind": 3, "target_total": 2}
+  ],
+  "target_kind": 0,
+  "target_total": 2,
+  "star_one": 100,
+  "star_two": 200,
+  "star_three": 360,
+  "intro_text": "tutorial.tokens.intro",
+  "tutorial": [
+    "tutorial.prompt.tokens.intro",
+    "tutorial.prompt.tokens.release"
+  ],
+  "avoid_initial_matches": true,
+  "tokens": [
+    {"x": 1, "y": 5, "id": 1, "matching_kind": -1},
+    {"x": 4, "y": 5, "id": 2, "matching_kind": -1}
+  ]
+}

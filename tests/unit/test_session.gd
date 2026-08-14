@@ -301,7 +301,12 @@ func test_session_snapshot_state_roundtrips() -> void:
 	assert_eq(snap["state"], State.READY)
 	assert_eq(snap["moves_remaining"], 20)
 	assert_eq(snap["score"], 0)
-	assert_true(snap.has("objective"))
+	# Step 16: snapshot exposes both `objectives` (multi-objective
+	# array) and `objective_legacy` (back-compat shim pointing at
+	# objectives[0]).
+	assert_true(snap.has("objectives"))
+	assert_eq((snap["objectives"] as Array).size(), 1)
+	assert_true(snap.has("objective_legacy"))
 	assert_true(snap.has("stars"))
 	assert_true(snap.has("board"))
 	assert_true(snap.has("rng_state"))

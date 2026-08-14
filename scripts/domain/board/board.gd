@@ -321,6 +321,8 @@ class BoardConfig:
 # ----------------------------------------------------------------------------
 
 var config: BoardConfig
+# Step 16: trapped-token list — see Board.add_token() for shape.
+var tokens: Array = []
 var _cells: Array = []  # Array[Cell], indexed by y * width + x in stable order
 
 func _init(p_config: BoardConfig = null) -> void:
@@ -329,6 +331,47 @@ func _init(p_config: BoardConfig = null) -> void:
 	config = p_config
 	_init_cells()
 	_apply_frosting()
+
+## Step 16: place a token on the board. Validation: in-bounds, not
+## on a BLOCKED cell, not on a FROSTING cell (frosting + tokens
+## would conflict visually), and not a duplicate of an existing
+## token at the same coordinate. Returns true on success.
+func add_token(x: int, y: int, id: int, matching_kind: int = -1) -> bool:
+	if not in_bounds(x, y):
+		return false
+	var cell: Cell = _cells[_index(x, y)]
+	if cell.is_blocked() or cell.is_frosted():
+		return false
+	var key: String = "%d,%d" % [x, y]
+	for existing in tokens:
+		var ed: Dictionary = existing
+		if (int(ed.get("x", -1)) == x and int(ed.get("y", -1)) == y):
+			return false
+	tokens.append({"x": x, "y": y, "id": id, "matching_kind": matching_kind})
+	return true
+
+## Step 16: look up a token at the given coord. Returns an empty
+## Dictionary when no token is at that coord (caller should check
+## `is_empty()` because GDScript cannot return null from a typed
+## Dictionary function without an unsafe cast).
+func token_at(c: CellCoord) -> Dictionary:
+	if c == null:
+		return {}
+	for entry in tokens:
+		var ed: Dictionary = entry
+		if int(ed.get("x", -1)) == c.x and int(ed.get("y", -1)) == c.y:
+			return ed
+	return {}
+
+## Step 16: remove the token at the given coord. Returns true if a
+## token was removed.
+func remove_token_at(c: CellCoord) -> bool:
+	for i in range(tokens.size()):
+		var entry: Dictionary = tokens[i]
+		if int(entry.get("x", -1)) == c.x and int(entry.get("y", -1)) == c.y:
+			tokens.remove_at(i)
+			return true
+	return false
 
 func _init_cells() -> void:
 	_cells.clear()
@@ -531,11 +574,21 @@ func to_snapshot() -> Dictionary:
 		if cell.kind == CellKind.FROSTING and cell.frosting_layers > 0:
 			entry["frosting_layers"] = cell.frosting_layers
 		cells_array.append(entry)
+	var tokens_out: Array = []
+	for entry in tokens:
+		var ed: Dictionary = entry
+		tokens_out.append({
+			"x": int(ed.get("x", 0)),
+			"y": int(ed.get("y", 0)),
+			"id": int(ed.get("id", -1)),
+			"matching_kind": int(ed.get("matching_kind", -1)),
+		})
 	return {
 		"width": config.width,
 		"height": config.height,
 		"normal_palette_size": config.normal_palette_size,
 		"cells": cells_array,
+		"tokens": tokens_out,
 	}
 
 ## Stable hash of the snapshot. Used by replay comparators.
@@ -564,4 +617,10 @@ func snapshot_hash() -> int:
 				h = (h * 31 + 1) & 0xFFFFFFFF
 		if cell.kind == CellKind.FROSTING and cell.frosting_layers > 0:
 			h = (h * 31 + cell.frosting_layers) & 0xFFFFFFFF
+	for entry in tokens:
+		var ed: Dictionary = entry
+		h = (h * 31 + int(ed.get("x", 0))) & 0xFFFFFFFF
+		h = (h * 31 + int(ed.get("y", 0))) & 0xFFFFFFFF
+		h = (h * 31 + int(ed.get("id", -1))) & 0xFFFFFFFF
+		h = (h * 31 + int(ed.get("matching_kind", -1))) & 0xFFFFFFFF
 	return h

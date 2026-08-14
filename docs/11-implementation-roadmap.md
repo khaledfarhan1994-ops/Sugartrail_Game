@@ -460,7 +460,7 @@ Implementation summary:
 
 ### Step 16: Implement remaining launch objectives
 
-Status: Not started
+Status: Done
 
 Goal: Support clear-layers, collect targets, release tokens, and score targets.
 
@@ -478,6 +478,15 @@ Acceptance:
 - Gameplay remains clear with audio disabled and reduced motion enabled.
 
 References: `02-game-design.md`, `04-level-pipeline.md`.
+
+Outcome: Shipped `COLLECT_KIND`, `REACH_SCORE`, `CLEAR_LAYERS`, and
+`RELEASE_TOKEN` objective kinds plus a multi-objective AND-joined
+session. New `Board.tokens` parallel array and `TOKEN_RELEASE` event
+in the resolution pipeline. Recipe schema bumped to v3 with a
+forward-only `migration_v2_to_v3` chain. Engine version bumped to
+0.5.0. Three new curated levels (`l13-clear-layers`,
+`l14-release-token`, `l15-mixed-objectives`). 224 unit tests pass;
+zero new lint errors.
 
 ### Step 17: Add hints and optional earned boosters
 
