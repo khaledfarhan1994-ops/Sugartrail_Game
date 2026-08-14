@@ -1,0 +1,29 @@
+{
+  "recipe_id": "l11-frosting-intro",
+  "version": 2,
+  "chapter": 1,
+  "index_in_chapter": 0,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 4,
+  "seed": 1101,
+  "moves": 25,
+  "target_kind": 0,
+  "target_total": 8,
+  "star_one": 80,
+  "star_two": 180,
+  "star_three": 320,
+  "intro_text": "tutorial.frosting.intro",
+  "tutorial": [
+    "tutorial.prompt.frosting.intro",
+    "tutorial.prompt.frosting.match"
+  ],
+  "avoid_initial_matches": true,
+  "blockers": [
+    {"x": 1, "y": 6, "type": "FROSTING", "layers": 1},
+    {"x": 3, "y": 5, "type": "FROSTING", "layers": 1},
+    {"x": 4, "y": 3, "type": "FROSTING", "layers": 1},
+    {"x": 0, "y": 2, "type": "FROSTING", "layers": 2},
+    {"x": 5, "y": 1, "type": "FROSTING", "layers": 1}
+  ]
+}

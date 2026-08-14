@@ -213,6 +213,8 @@ class Session:
 		# Re-fill the board deterministically.
 		var avoid: bool = recipe.get("avoid_initial_matches", true)
 		Resolution.fill_random(board, rng, avoid)
+		# Step 15: re-apply locked cells on the freshly-filled pieces.
+		board.apply_locks_to_pieces()
 		# Reset the session state.
 		state = State.INTRO
 		score = 0
@@ -243,18 +245,22 @@ class Session:
 ##   recipe_id (string), version (int), moves (int), target_kind (int),
 ##   target_total (int), palette (int), board_w (int), board_h (int),
 ##   seed (int).
-## Optional: star_one / star_two / star_three overrides.
+## Optional: star_one / star_two / star_three overrides, blockers.
 static func from_recipe(recipe: Dictionary) -> Session:
 	var w: int = int(recipe.get("board_w", 6))
 	var h: int = int(recipe.get("board_h", 8))
 	var palette: int = int(recipe.get("palette", 6))
 	var blocked: Array = []
-	var cfg := Board.BoardConfig.new(w, h, palette, blocked)
+	var blockers: Array = recipe.get("blockers", [])
+	var cfg := Board.BoardConfig.new(w, h, palette, blocked, blockers)
 	var board: Board = Board.new(cfg)
 	var seed: int = int(recipe.get("seed", 0))
 	var rng := Rng.new(seed)
 	var avoid: bool = recipe.get("avoid_initial_matches", true)
 	Resolution.fill_random(board, rng, avoid)
+	# Step 15: lock the LOCKED cells after refill so the locks ride
+	# on the now-occupied pieces.
+	board.apply_locks_to_pieces()
 	var objective := Objective.new(
 		ObjectiveKind.COLLECT_KIND,
 		int(recipe.get("target_kind", 0)),

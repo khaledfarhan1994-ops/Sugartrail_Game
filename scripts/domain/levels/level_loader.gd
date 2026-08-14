@@ -44,6 +44,10 @@ static func build_tutorial_from_recipe(recipe: Dictionary) -> Tutorial.TutorialP
 ##   res://data/levels/curated/{recipe_id}.json
 ## Returns null if the file does not load or does not validate.
 ## out_errors is populated with any validation messages.
+##
+## Step 15: v1 recipes (Step 11 era) are auto-migrated to v2 by
+## adding the empty `blockers` array and bumping the version. v2
+## recipes load directly.
 static func load_level(recipe_id: String,
 		out_errors: Array = []) -> LoadedLevel:
 	if out_errors == null:
@@ -51,6 +55,15 @@ static func load_level(recipe_id: String,
 	var path: String = "res://data/levels/curated/%s.json" % recipe_id
 	var recipe: Dictionary = LevelRecipe.load_from_file(path, out_errors)
 	if recipe.is_empty():
+		return null
+	# Migrate older recipes to current schema before validation. The
+	# load_from_file already validated against SCHEMA_VERSION, so a
+	# v1 file will fail validation — re-validate after migration.
+	recipe = LevelRecipe.migration_v1_to_v2(recipe)
+	var revalidation: LevelRecipe.ValidationResult = LevelRecipe.validate(recipe)
+	if not revalidation.ok:
+		for e in revalidation.errors:
+			out_errors.append("%s: %s" % [path, e])
 		return null
 	var session: Session.Session = build_session_from_recipe(recipe)
 	var tutorial: Tutorial.TutorialPack = build_tutorial_from_recipe(recipe)

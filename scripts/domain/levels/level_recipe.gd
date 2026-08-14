@@ -22,7 +22,7 @@ extends RefCounted
 ## Schema rules enforced at validate():
 ##
 ##   recipe_id  : non-empty String
-##   version    : int == 1
+##   version    : int == 2 (Step 15 bump)
 ##   chapter    : int >= 0
 ##   index_in_chapter : int >= 0
 ##   board_w    : int 1..8
@@ -39,10 +39,17 @@ extends RefCounted
 ##   tutorial   : Array of Strings (localization keys), length 0..8
 ##   intro_text : String (localization key), may be empty
 ##   avoid_initial_matches : bool, defaults true
+##   blockers   : Array of blocker entries (optional, Step 15). Each
+##                entry has the shape
+##                  {"x": int, "y": int, "type": "FROSTING"|"LOCKED",
+##                   "layers": int >= 1}
+##                FROSTING uses layers 1..4; LOCKED uses layers 1
+##                (informational). All entries must be in-bounds
+##                and not overlap a BLOCKED cell.
 
 ## Recipe schema version. Increment when validation rules change
 ## incompatibly. Old recipes must be migrated before they are loaded.
-const SCHEMA_VERSION: int = 1
+const SCHEMA_VERSION: int = 2
 
 ## Result of validate(). ok == true means the recipe is loadable.
 class ValidationResult:
@@ -168,12 +175,53 @@ static func validate(raw: Dictionary) -> ValidationResult:
 		warnings.append("target_total=%d is more than half of board (%d cells)" % [
 			target_total, w * h])
 
+	# Step 15: optional blockers array. Validate shape, type, layers,
+	# bounds, and uniqueness.
+	if raw.has("blockers"):
+		var blockers_v: Variant = raw["blockers"]
+		if not (blockers_v is Array):
+			errors.append("blockers must be an Array")
+		else:
+			var blockers: Array = blockers_v
+			var seen_b := {}
+			for entry in blockers:
+				if not (entry is Dictionary):
+					errors.append("blockers entries must be Dictionaries")
+					continue
+				var d: Dictionary = entry
+				if not d.has("x") or not d.has("y") or not d.has("type"):
+					errors.append("blockers entry missing required keys (x,y,type)")
+					continue
+				var bx: int = int(d.get("x", -1))
+				var by: int = int(d.get("y", -1))
+				var btype: String = str(d.get("type", ""))
+				var blayers: int = int(d.get("layers", 0))
+				if bx < 0 or bx >= w or by < 0 or by >= h:
+					errors.append("blocker at (%d,%d) out of bounds %dx%d" % [bx, by, w, h])
+					continue
+				if btype != "FROSTING" and btype != "LOCKED":
+					errors.append("blocker at (%d,%d) has invalid type '%s'" % [bx, by, btype])
+					continue
+				if blayers < 1 or blayers > 4:
+					errors.append("blocker at (%d,%d) has layers %d (must be 1..4)" % [bx, by, blayers])
+					continue
+				var bkey: String = "%d,%d" % [bx, by]
+				if seen_b.has(bkey):
+					errors.append("duplicate blocker at (%d,%d)" % [bx, by])
+					continue
+				seen_b[bkey] = true
+
 	var ok: bool = errors.size() == 0
 	return ValidationResult.new(ok, errors, warnings)
 
 ## Load and validate a recipe from a JSON file. Returns null on
 ## failure (errors already collected into out_errors if non-null).
 ## Validates before returning; never returns an invalid recipe.
+##
+## Step 15: older recipes (version < SCHEMA_VERSION) are auto-
+## migrated before validation. Migrations are forward-only: each
+## version bump appends a new migration helper that the loader
+## chains in order.
 static func load_from_file(path: String, out_errors: Array = []) -> Dictionary:
 	if out_errors == null:
 		out_errors = []
@@ -192,6 +240,9 @@ static func load_from_file(path: String, out_errors: Array = []) -> Dictionary:
 		out_errors.append("recipe file is not a JSON object: %s" % path)
 		return {}
 	var recipe: Dictionary = parsed
+	# Auto-migrate older versions to the current schema before
+	# validation. The migration chain runs forward-only.
+	recipe = migration_v1_to_v2(recipe)
 	var result: ValidationResult = validate(recipe)
 	if not result.ok:
 		for e in result.errors:
@@ -205,4 +256,22 @@ static func with_defaults(raw: Dictionary) -> Dictionary:
 	var out: Dictionary = raw.duplicate(true)
 	if not out.has("avoid_initial_matches"):
 		out["avoid_initial_matches"] = true
+	if not out.has("blockers"):
+		out["blockers"] = []
+	return out
+
+## Step 15: migrate a v1 recipe (Step 11 era) to v2 by adding the
+## empty blockers array and bumping version. Returns a new dictionary;
+## the input is not mutated. Returns the input unchanged if it is
+## already at version >= 2.
+static func migration_v1_to_v2(raw: Dictionary) -> Dictionary:
+	if raw == null:
+		return raw
+	var version: int = int(raw.get("version", 1))
+	if version >= 2:
+		return raw
+	var out: Dictionary = raw.duplicate(true)
+	out["version"] = SCHEMA_VERSION
+	if not out.has("blockers"):
+		out["blockers"] = []
 	return out

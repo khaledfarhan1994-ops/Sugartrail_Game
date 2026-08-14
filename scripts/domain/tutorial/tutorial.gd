@@ -132,7 +132,16 @@ class Catalog:
 	## concept here sets them up for later levels.
 	const PROMPT_DEADLOCK: String = "tutorial.prompt.deadlock"
 
-	## Known keys for the first ten levels. The tests use this set
+	## Step 15: blocker tutorial prompts (one-hit / layered frosting,
+	## locked cells).
+	const STRAP_FROSTING_INTRO: String = "tutorial.frosting.intro"
+	const PROMPT_FROSTING_INTRO: String = "tutorial.prompt.frosting.intro"
+	const PROMPT_FROSTING_MATCH: String = "tutorial.prompt.frosting.match"
+	const STRAP_LOCKED_INTRO: String = "tutorial.locked.intro"
+	const PROMPT_LOCKED_INTRO: String = "tutorial.prompt.locked.intro"
+	const PROMPT_LOCKED_RELEASE: String = "tutorial.prompt.locked.release"
+
+	## Known keys for the first twelve levels. The tests use this set
 	## to verify that every prompt key resolves to a known English
 	## string.
 	static func known_keys() -> Array:
@@ -147,6 +156,12 @@ class Catalog:
 			PROMPT_RETRY,
 			PROMPT_PAUSE,
 			PROMPT_DEADLOCK,
+			STRAP_FROSTING_INTRO,
+			PROMPT_FROSTING_INTRO,
+			PROMPT_FROSTING_MATCH,
+			STRAP_LOCKED_INTRO,
+			PROMPT_LOCKED_INTRO,
+			PROMPT_LOCKED_RELEASE,
 		]
 
 ## English translation strings. Step 21 replaces this with a real
@@ -165,4 +180,10 @@ static func english(key: String) -> String:
 		Catalog.PROMPT_RETRY: return "Lost? Retry any time — every level is unlimited."
 		Catalog.PROMPT_PAUSE: return "Tap the pause button to take a break."
 		Catalog.PROMPT_DEADLOCK: return "If the board deadlocks, a reshuffle keeps you playing."
+		Catalog.STRAP_FROSTING_INTRO: return "Frosted cells take an extra clear to break."
+		Catalog.PROMPT_FROSTING_INTRO: return "Icy cells cover pieces — match through them to damage the frosting."
+		Catalog.PROMPT_FROSTING_MATCH: return "Each match on a frosted cell cracks one layer."
+		Catalog.STRAP_LOCKED_INTRO: return "Some pieces are locked in cages."
+		Catalog.PROMPT_LOCKED_INTRO: return "Locked pieces won't budge from a regular match."
+		Catalog.PROMPT_LOCKED_RELEASE: return "Specials and combos break the lock."
 		_: return ""

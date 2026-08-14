@@ -34,10 +34,10 @@ record the answer in `decisions.md` and `work-log.md`.
 ## Current execution state
 
 - Current phase: Phase D, Complete Gameplay Rules.
-- Current step: Step 15.
-- Step status: Steps 01-14 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
-- Last completed step: Step 14 (special-piece combinations: 10-row combinator matrix with direction invariance, swap precondition extended for special+special, replay determinism preserved; 25 new fixtures; engine bumped to 0.3.0).
-- Next action: execute Step 15 — implement launch blockers (one-hit frosting, layered frosting, locked cells, composable blocker rules).
+- Current step: Step 16.
+- Step status: Steps 01-15 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
+- Last completed step: Step 15 (launch blockers: FROSTING cell kind + per-cell frosting_layers/locked fields; BLOCKER_DAMAGE/BLOCKER_BREAK events; locked cells block match removal; recipe schema v2 with auto-migration v1→v2; two new curated levels l11/l12; ~28 new fixtures; engine bumped to 0.4.0).
+- Next action: execute Step 16 — implement remaining launch objectives (clear-layers, collect targets, release tokens, score targets).
 
 ## Build, test, and verification commands
 

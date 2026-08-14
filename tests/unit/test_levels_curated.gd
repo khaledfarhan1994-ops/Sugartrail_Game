@@ -23,6 +23,8 @@ const CURATED_IDS: Array = [
 	"l8-pause-and-restart",
 	"l9-long-combo",
 	"l10-final",
+	"l11-frosting-intro",
+	"l12-locked-cells",
 ]
 
 # ----------------------------------------------------------------------------

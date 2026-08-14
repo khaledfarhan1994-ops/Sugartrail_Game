@@ -429,3 +429,40 @@ Reference an artifact path or summarize the relevant failure instead.
 - Decisions/assumptions: the dispatcher resolves each combo role by kind, not by input order, so the cleared SET is invariant under swap direction (the test suite asserts set equality rather than array equality for this reason). Combo swaps are legal only when both cells hold SpecialPieces; a normal+special swap still requires a 3-run (the Step 13 swap-triggered activation rule is unchanged). The combo path runs BEFORE the standard match-cascade loop because it never produces a match itself (the swap of two specials does not create a 3-run on the swapped cells). Engine version bumps to 0.3.0 so replay logs from before Step 14 fail with an explicit version-mismatch. Test files split into test_combos.gd (18 fixtures, sections A-D+H+I) and test_combos_integration.gd (7 fixtures, sections E+F+G+J+K) to stay under gdlint's 20-public-method cap.
 - Problems/risks: the gdlint 110-char line length cap is unchanged (pre-existing Step 05-06 errors remain). The combo path bypasses `_resolve_cycle` entirely (no match-detection loop runs), so cascade-related invariants (gravity/refill ordering, MAX_CASCADE_CYCLES) are unaffected. If a future combo involves a special whose activation clears > MAX_REMOVES_PER_CYCLE cells (currently 4096, easy 6-kind 8x8 + bomb cap is well under that), the explicit push_error still applies.
 - Next action: Step 15 — implement launch blockers (frosting, locked cells, spawners).
+
+## 2026-08-14 - STEP-15 - Launch blockers (frosting + locked cells)
+
+- Agent/session: Puku CLI session on Codespace `codespaces-8ad466`
+- Type: step completion
+- Roadmap state: Step 15 Not started -> Step 15 Complete
+- Request/goal: ship the launch blocker mechanics (one-hit frosting, layered frosting, locked cells) as composable rules that layer on top of the Step 14 contracts without breaking them. Each blocker must serialize + replay deterministically, interact correctly with gravity/refill/swap/match, and emit domain events so the presentation layer can animate state changes.
+- Work performed:
+  - `scripts/domain/board/board.gd`: added `CellKind.FROSTING = 3`. Cell now carries `frosting_layers: int` and `locked: bool`. Added predicates `is_frosted()`, `is_locked()`, `frosting_remaining()`. `BoardConfig` extended with `blockers: Array` (validated by `_validate_blockers`). Added `apply_locks_to_pieces()` (post-refill helper), `damage_to_frosting(c, layers_after)`, `break_frosting(c)`. `set_piece` preserves frosting_layers when transitioning FROSTING→PIECE; `set_empty` preserves frosting_layers when emptying a frosted piece (cell becomes FROSTING after the next refill). Snapshot + hash roundtrip frosting_layers and locked.
+  - `scripts/domain/levels/level_recipe.gd`: bumped `SCHEMA_VERSION` to 2; added optional `blockers: Array` validation; added `migration_v1_to_v2` static helper; `load_from_file` auto-migrates v1 recipes before validation.
+  - `scripts/domain/levels/level_loader.gd`: `load_level` migrates and re-validates v1 inputs.
+  - `scripts/domain/rules/rules.gd`: `is_frosting_blocked(board, c)` helper; `find_runs` doc + semantics note (FROSTING cells excluded from runs); `try_swap` rejects FROSTING+FROSTING via `is_piece`.
+  - `scripts/domain/rules/resolution.gd`: added `EventKind.BLOCKER_DAMAGE = 7` and `BLOCKER_BREAK = 8`; `DomainEvent.layers_after` field (default -1, BREAK passes 0). Gravity treats FROSTING as EMPTY for falling. Refill treats FROSTING as EMPTY for spawning (preserves frosting). `_resolve_cycle` removal loop: decrements frosting_layers per remove; emits BLOCKER_DAMAGE while layers remain; emits BLOCKER_BREAK and clears the cell to EMPTY when the last layer is consumed; locked cells are skipped by pure match removals but released when a special activation's cleared list includes them (emits BLOCKER_BREAK + clears `cell.locked = false`).
+  - `scripts/domain/session/session.gd`: `from_recipe` and `retry` now pass `blockers` to `BoardConfig` and call `apply_locks_to_pieces` after refill.
+  - `scripts/domain/sugartrail_version.gd`: `ENGINE_MINOR = 4` (engine 0.4.0).
+  - `scripts/domain/tutorial/tutorial.gd`: 6 new Catalog constants + English translations for frosting/locked intros.
+  - `tests/unit/test_replay.gd`, `tests/unit/test_specials_integration.gd`: 0.3.0 -> 0.4.0 in version fixtures.
+  - `tests/unit/test_levels_validation.gd`, `tests/unit/test_levels_curated.gd`: schema v2 acceptance, l11/l12 entries added.
+  - `data/levels/curated/l11-frosting-intro.json` (schema v2, 6x8, palette 4, 5 FROSTING cells layers 1..2) and `data/levels/curated/l12-locked-cells.json` (schema v2, 6x8, palette 4, 4 LOCKED cells) added; INDEX.json updated.
+  - `tests/unit/test_blockers.gd` (16 fixtures), `tests/unit/test_blockers_layers.gd` (6 fixtures), `tests/unit/test_blockers_integration.gd` (6 fixtures) added.
+  - `docs/02-game-design.md` §4.1: launch blocker rules table.
+  - `docs/11-implementation-roadmap.md`, `docs/14-agent-handoff.md`, `docs/status.md`, `docs/changelog.md`: Step 15 completion notes.
+- Files changed: see above list.
+- Commands and results:
+  - `bash tools/test.sh` -> 198/198 passing, 3070 asserts in ~6.1s.
+  - `gdlint scripts/ tests/` -> 8 errors (1 fewer than the Step 14 baseline of 9; all remaining errors are pre-existing Step 05-06 issues unrelated to Step 15).
+  - `tools/build/godot/godot --headless --path . --quit-after 1 res://scenes/vertical_slice/vertical_slice_smoke.tscn` -> Step 12 baseline still wins level 1 in 665ms (no regression).
+  - `bash tools/ci.sh` -> toolchain + disk gate + tests all pass; lint fails on pre-existing baseline (8 errors, all unrelated to Step 15).
+- Acceptance evidence (Step 15):
+  - "Each blocker is composable" -> PASS (FROSTING and LOCKED live on the same Cell; mixed levels (l11 + l12) load and apply independently)
+  - "Blockers serialize + replay deterministically" -> PASS (snapshot + hash fold frosting_layers and locked; test_blockers_integration.gd::test_replay_determinism_with_blockers runs two clean replays of a frosting action sequence and asserts identical snapshot_hash)
+  - "Blockers interact correctly with gravity, refill, swap, match removal" -> PASS (test_blockers.gd sections D-I cover all four mechanics)
+  - "Domain events emitted for state changes" -> PASS (BLOCKER_DAMAGE / BLOCKER_BREAK payload tests in test_blockers_layers.gd)
+  - "Engine version gate" -> PASS (test_blockers_integration.gd::test_engine_version_bumped_for_step_15 asserts engine_version == "0.4.0")
+- Decisions/assumptions: FROSTING cells are EMPTY for gravity + refill (the decoration persists across cascades); pieces fall into frosted empty floors and refill spawns new pieces onto them. BLOCKED cells remain the only solid floors. After the last frosting layer is removed, the cell becomes EMPTY (not FROSTING with layers=0) so the refill can spawn a new piece. Locked cells are released ONLY by special activations whose cleared list includes the cell (the BLOCKER_BREAK event flags the lock release). Schema v1 recipes auto-migrate to v2 with an empty blockers list (existing 10 curated levels still load).
+- Problems/risks: the gdlint 110-char line cap remains broken on the baseline (pre-existing Step 05-06 errors). All Step 15 files pass gdlint individually. The two new curated recipes use BLOCKER_DAMAGE + BLOCKER_BREAK events with a cleared list containing the center cell of a 5-run to exercise the locked-cell release path; if future Step 27 art polish needs the center cell to be the player-visible special, the recipe is easy to adjust.
+- Next action: Step 16 — implement remaining launch objectives (clear-layers, collect targets, release tokens, score targets).

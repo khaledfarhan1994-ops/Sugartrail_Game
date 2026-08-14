@@ -53,12 +53,20 @@ class CellCoord:
 
 const MAX_PIECE_TYPES: int = 64
 
-## A single grid cell. Stores either a piece, an empty hole, or a
-## blocked cell (ice, locked, etc.). Blocker support lands in Step 15.
+## A single grid cell. Stores either a piece, an empty hole, a
+## blocked cell (structural, never holds a piece — set at level
+## load), or a frosted cell (sticky floor that survives across
+## cascades and decrements when its underlying piece is cleared).
+##
+## Step 15 adds the FROSTING cell kind and the per-cell `locked`
+## flag for the launch blockers (one-hit / layered frosting,
+## locked cells). Frosting persists across cascades; refill
+## skips FROSTING cells; gravity treats FROSTING as a floor.
 enum CellKind {
 	PIECE = 0,
 	EMPTY = 1,
 	BLOCKED = 2,
+	FROSTING = 3,
 }
 
 ## Special kinds. NONE is the default for normal pieces; the other
@@ -167,6 +175,18 @@ class Cell:
 	## `is_piece()` as the primary predicate and check
 	## `piece is SpecialPiece` when special semantics matter.
 	var piece = null
+	## Step 15: how many frosting layers cover this cell. 0 means
+	## no frosting. When the underlying piece is cleared, the
+	## frosting decrements; on the last layer the cell breaks.
+	## Frosting only applies when the cell is in FROSTING kind
+	## (kind transitions to FROSTING the cycle the piece is
+	## cleared under frosting_layers > 1).
+	var frosting_layers: int = 0
+	## Step 15: locked cells hold a piece that cannot be removed
+	## by matches (the match runs around the locked cell). The
+	## lock is released only by a special activation that clears
+	## the piece AND lists the cell in the cleared list.
+	var locked: bool = false
 
 	func _init(c: CellCoord = null, p_kind: int = CellKind.EMPTY, p_piece = null) -> void:
 		coord = c if c != null else CellCoord.new(0, 0)
@@ -182,6 +202,19 @@ class Cell:
 	func is_blocked() -> bool:
 		return kind == CellKind.BLOCKED
 
+	func is_frosted() -> bool:
+		# Step 15: a cell is frosted when it has frosting_layers > 0,
+		# regardless of whether the cell currently holds a piece (a
+		# frosted piece is still frosted). A frosted PIECE cell is
+		# visually frosted; matching the piece damages the frosting.
+		return frosting_layers > 0
+
+	func is_locked() -> bool:
+		return kind == CellKind.PIECE and locked
+
+	func frosting_remaining() -> int:
+		return frosting_layers if is_frosted() else 0
+
 	func _to_debug_string() -> String:
 		if is_piece():
 			var tag: String = "piece"
@@ -191,9 +224,13 @@ class Cell:
 				var names := ["NORMAL", "STRIPED_ROW", "STRIPED_COL", "COLOR_BOMB", "AREA"]
 				var nm: String = names[spec.kind] if spec.kind >= 0 and spec.kind < names.size() else "?"
 				tag = "special(%s,k%d)" % [nm, sp.kind_id]
+			if locked:
+				tag = "locked_" + tag
 			return "%s=%s(%d)" % [coord._to_debug_string(), tag, piece.kind_id]
-		elif is_blocked():
+		if is_blocked():
 			return "%s=blocked" % coord._to_debug_string()
+		if is_frosted():
+			return "%s=frosting(L%d)" % [coord._to_debug_string(), frosting_layers]
 		return "%s=empty" % coord._to_debug_string()
 
 # ----------------------------------------------------------------------------
@@ -201,19 +238,32 @@ class Cell:
 # ----------------------------------------------------------------------------
 
 ## Static configuration of a board: dimensions, normal-piece palette
-## size, and immutable structural blocks. Stored once at level load.
+## size, immutable structural blocks, and initial blocker spec.
+## Stored once at level load.
+##
+## Step 15: `blockers` is an Array[Dictionary] of initial blocker
+## placement. Each entry has the shape:
+##   {"x": int, "y": int, "type": "FROSTING" | "LOCKED", "layers": int}
+## FROSTING entries carry `layers >= 1` (one-hit uses 1, layered
+## uses 2-4). LOCKED entries carry `layers >= 1` (informational
+## only; locked cells hold a piece and the lock field is set).
+## Validated by BoardConfig._validate_blockers().
 class BoardConfig:
 	var width: int = 0
 	var height: int = 0
 	var normal_palette_size: int = 6
 	var blocked: Array = []  # Array[CellCoord], validated at construction
+	var blockers: Array = []  # Array[Dictionary], validated at construction
 
-	func _init(p_width: int = 0, p_height: int = 0, p_palette: int = 6, p_blocked: Array = []) -> void:
+	func _init(p_width: int = 0, p_height: int = 0, p_palette: int = 6,
+			p_blocked: Array = [], p_blockers: Array = []) -> void:
 		width = p_width
 		height = p_height
 		normal_palette_size = p_palette
 		blocked = p_blocked
+		blockers = p_blockers
 		_validate()
+		_validate_blockers()
 
 	func _validate() -> void:
 		if width <= 0 or height <= 0:
@@ -234,6 +284,38 @@ class BoardConfig:
 				continue
 			seen[key] = true
 
+	func _validate_blockers() -> void:
+		var seen := {}
+		for entry in blockers:
+			if not (entry is Dictionary):
+				push_error("BoardConfig: blocker entry is not a Dictionary: %s" % str(entry))
+				continue
+			var d: Dictionary = entry
+			var x: int = int(d.get("x", -1))
+			var y: int = int(d.get("y", -1))
+			var type_v: Variant = d.get("type", "")
+			var type_str: String = type_v if type_v is String else ""
+			var layers: int = int(d.get("layers", 0))
+			if x < 0 or x >= width or y < 0 or y >= height:
+				push_error("BoardConfig: blocker at (%d,%d) out of bounds %dx%d" % [x, y, width, height])
+				continue
+			if type_str != "FROSTING" and type_str != "LOCKED":
+				push_error("BoardConfig: blocker at (%d,%d) has invalid type '%s'" % [x, y, type_str])
+				continue
+			if layers < 1:
+				push_error("BoardConfig: blocker at (%d,%d) has layers %d (< 1)" % [x, y, layers])
+				continue
+			var key: String = "%d,%d" % [x, y]
+			if seen.has(key):
+				push_error("BoardConfig: duplicate blocker at (%d,%d)" % [x, y])
+				continue
+			for b in blocked:
+				var bc: CellCoord = b
+				if bc.x == x and bc.y == y:
+					push_error("BoardConfig: blocker at (%d,%d) overlaps a BLOCKED cell" % [x, y])
+					continue
+			seen[key] = true
+
 # ----------------------------------------------------------------------------
 # SugartrailBoard — flat cell array, deterministic indexing
 # ----------------------------------------------------------------------------
@@ -246,6 +328,7 @@ func _init(p_config: BoardConfig = null) -> void:
 		p_config = BoardConfig.new(8, 10, 6, [])
 	config = p_config
 	_init_cells()
+	_apply_frosting()
 
 func _init_cells() -> void:
 	_cells.clear()
@@ -259,7 +342,61 @@ func _classify(c: CellCoord) -> int:
 	for b in config.blocked:
 		if b.is_equal_to(c):
 			return CellKind.BLOCKED
+	# Step 15: cells with a FROSTING blocker entry start as FROSTING.
+	for entry in config.blockers:
+		if not (entry is Dictionary):
+			continue
+		var d: Dictionary = entry
+		if d.get("type", "") != "FROSTING":
+			continue
+		if int(d.get("x", -1)) == c.x and int(d.get("y", -1)) == c.y:
+			return CellKind.FROSTING
 	return CellKind.EMPTY
+
+## Step 15: set frosting_layers on the cells that started FROSTING.
+## Runs once at construction. The cells remain FROSTING with no
+## piece until refill fills them via a clear-then-spawn cascade (or
+## the player matches a piece on top, which decrements).
+func _apply_frosting() -> void:
+	for entry in config.blockers:
+		if not (entry is Dictionary):
+			continue
+		var d: Dictionary = entry
+		if d.get("type", "") != "FROSTING":
+			continue
+		var x: int = int(d.get("x", -1))
+		var y: int = int(d.get("y", -1))
+		if not in_bounds(x, y):
+			continue
+		var cell: Cell = _cells[_index(x, y)]
+		if cell.kind != CellKind.FROSTING:
+			continue
+		cell.frosting_layers = int(d.get("layers", 1))
+
+## Step 15: lock all pieces marked as LOCKED in the blocker spec.
+## Called by the level loader AFTER refill. Returns errors.
+func apply_locks_to_pieces() -> Array:
+	var errors: Array = []
+	for entry in config.blockers:
+		if not (entry is Dictionary):
+			continue
+		var d: Dictionary = entry
+		if d.get("type", "") != "LOCKED":
+			continue
+		var x: int = int(d.get("x", -1))
+		var y: int = int(d.get("y", -1))
+		if not in_bounds(x, y):
+			errors.append("apply_locks_to_pieces: cell (%d,%d) out of bounds" % [x, y])
+			continue
+		var cell: Cell = cell_at(CellCoord.new(x, y))
+		if cell == null:
+			errors.append("apply_locks_to_pieces: cell (%d,%d) is null" % [x, y])
+			continue
+		if not cell.is_piece():
+			errors.append("apply_locks_to_pieces: LOCKED cell (%d,%d) has no piece to lock" % [x, y])
+			continue
+		cell.locked = true
+	return errors
 
 # ----------------------------------------------------------------------------
 # Cell accessors (read)
@@ -283,15 +420,50 @@ func set_piece(c: CellCoord, piece) -> void:
 	var cell: Cell = _cells[_index(c.x, c.y)]
 	assert(cell.kind != CellKind.BLOCKED, "set_piece into a BLOCKED cell: %s" % c._to_debug_string())
 	assert(piece != null, "set_piece requires non-null Piece")
+	# Step 15: preserve frosting_layers when transitioning a
+	# FROSTING cell to PIECE (refill of a frosted empty floor).
+	var preserved_frosting: int = cell.frosting_layers if cell.kind == CellKind.FROSTING else 0
 	cell.kind = CellKind.PIECE
 	cell.piece = piece
+	if preserved_frosting > 0:
+		cell.frosting_layers = preserved_frosting
 
 func set_empty(c: CellCoord) -> void:
 	assert(in_bounds(c.x, c.y), "set_empty out of bounds: %s" % c._to_debug_string())
 	var cell: Cell = _cells[_index(c.x, c.y)]
 	assert(cell.kind != CellKind.BLOCKED, "set_empty into a BLOCKED cell: %s" % c._to_debug_string())
+	# Step 15: preserve frosting state when emptying a frosted piece.
+	# If the cell was PIECE with frosting_layers > 0, transitioning
+	# to EMPTY keeps the frosting (cell becomes a frosted empty
+	# floor waiting for refill).
+	var preserved_frosting: int = cell.frosting_layers
+	var preserved_locked: bool = cell.locked
 	cell.kind = CellKind.EMPTY
 	cell.piece = null
+	if preserved_frosting > 0:
+		cell.kind = CellKind.FROSTING
+		cell.frosting_layers = preserved_frosting
+		cell.locked = preserved_locked
+
+## Step 15: transition a PIECE cell to FROSTING after the piece is
+## cleared and at least one frosting layer remains. Decrements
+## frosting_layers by 1.
+func damage_to_frosting(c: CellCoord, layers_after: int) -> void:
+	assert(in_bounds(c.x, c.y), "damage_to_frosting out of bounds: %s" % c._to_debug_string())
+	var cell: Cell = _cells[_index(c.x, c.y)]
+	cell.piece = null
+	cell.locked = false
+	cell.kind = CellKind.FROSTING
+	cell.frosting_layers = layers_after
+
+## Step 15: clear a FROSTING cell entirely (last layer broken).
+func break_frosting(c: CellCoord) -> void:
+	assert(in_bounds(c.x, c.y), "break_frosting out of bounds: %s" % c._to_debug_string())
+	var cell: Cell = _cells[_index(c.x, c.y)]
+	cell.kind = CellKind.EMPTY
+	cell.piece = null
+	cell.frosting_layers = 0
+	cell.locked = false
 
 # ----------------------------------------------------------------------------
 # Iteration helpers (read-only)
@@ -343,6 +515,8 @@ func validate() -> bool:
 ##
 ## Cells holding a SpecialPiece gain a "special" key (SpecialKind +
 ## orientation) so a snapshot roundtrips the special metadata.
+## Step 15: FROSTING cells roundtrip `frosting_layers`; PIECE cells
+## roundtrip `locked` so the lock survives snapshot replay.
 func to_snapshot() -> Dictionary:
 	var cells_array: Array = []
 	for cell in _cells:
@@ -352,6 +526,10 @@ func to_snapshot() -> Dictionary:
 			if cell.piece is SpecialPiece:
 				var sp: SpecialPiece = cell.piece
 				entry["special"] = sp.special.to_dict()
+			if cell.locked:
+				entry["locked"] = true
+		if cell.kind == CellKind.FROSTING and cell.frosting_layers > 0:
+			entry["frosting_layers"] = cell.frosting_layers
 		cells_array.append(entry)
 	return {
 		"width": config.width,
@@ -363,6 +541,8 @@ func to_snapshot() -> Dictionary:
 ## Stable hash of the snapshot. Used by replay comparators.
 ## The hash folds in the special kind + orientation so two boards
 ## that differ only by which cells hold specials replay distinctly.
+## Step 15: also folds in frosting_layers and locked so blockers
+## roundtrip deterministically.
 func snapshot_hash() -> int:
 	# Cheap deterministic fold; collisions are acceptable for replay
 	# comparisons because the snapshot itself is the truth.
@@ -380,4 +560,8 @@ func snapshot_hash() -> int:
 				h = (h * 31 + sp.special.orientation) & 0xFFFFFFFF
 				if sp.special.needs_activation:
 					h = (h * 31 + 1) & 0xFFFFFFFF
+			if cell.locked:
+				h = (h * 31 + 1) & 0xFFFFFFFF
+		if cell.kind == CellKind.FROSTING and cell.frosting_layers > 0:
+			h = (h * 31 + cell.frosting_layers) & 0xFFFFFFFF
 	return h

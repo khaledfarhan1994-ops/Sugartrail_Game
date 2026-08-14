@@ -10,7 +10,7 @@ const LevelRecipe = preload("res://scripts/domain/levels/level_recipe.gd")
 func _good_recipe() -> Dictionary:
 	return {
 		"recipe_id": "test-level",
-		"version": 1,
+		"version": 2,
 		"chapter": 0,
 		"index_in_chapter": 0,
 		"board_w": 6,

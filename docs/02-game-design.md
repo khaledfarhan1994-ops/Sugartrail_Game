@@ -115,6 +115,30 @@ Each objective has a progress counter, completion condition, failure condition,
 and solver representation. New mechanics appear in tutorial levels before
 being combined.
 
+### 4.1 Step 15: launch blocker rules
+
+| Blocker | Visual (without color) | Damage rule | Swap rule |
+|---------|------------------------|-------------|-----------|
+| One-hit frosting (layers=1) | Frosted icon over the piece | First matching removal at the cell emits `BLOCKER_DAMAGE` with `layers_after=0` and `BLOCKER_BREAK`; cell becomes EMPTY. | The frosted piece can be swapped normally; the swap is legal because the cell holds a piece. |
+| Multi-layer frosting (layers=2..4) | Layered frosting icon over the piece | Each matching removal decrements `frosting_layers` and emits `BLOCKER_DAMAGE` with the new value; the cell transitions to FROSTING. When the last layer is removed, emits `BLOCKER_BREAK` and the cell becomes EMPTY. | Same as one-hit; pieces can move through. |
+| Locked cell | Padlock icon over the piece | The piece cannot be removed by a 3-run; only a special activation that lists the cell in its cleared set releases the lock and emits `BLOCKER_BREAK`. | The locked piece can be swapped normally (the lock does not block the swap). |
+
+Gravity and refill: FROSTING cells act like EMPTY cells for refill and
+gravity (the frosting is purely visual decoration). Pieces fall into
+frosted cells; refill fills them with new pieces; matches on the
+frosted piece decrement the frosting layers. BLOCKED cells remain the
+only solid floors.
+
+Domain events: `BLOCKER_DAMAGE` carries the residual
+`layers_after`, `BLOCKER_BREAK` carries no payload beyond the cell
+and kind, both are emitted alongside `REMOVE` so the presentation
+layer can animate the frosting damage before the cell clears.
+
+Recipe: each blocker is a `{x, y, type, layers}` entry in the
+recipe's optional `blockers` array. `FROSTING` uses layers 1..4;
+`LOCKED` uses layers 1 (informational only — the lock is a flag,
+not a counter).
+
 ## 5. Difficulty and fairness
 
 - Early levels teach one rule at a time.

@@ -405,7 +405,7 @@ References: `02-game-design.md`, `10-traceability-acceptance.md`.
 
 ### Step 15: Implement launch blockers
 
-Status: Not started
+Status: Complete
 
 Goal: Add one-hit frosting, layered frosting, and locked cells as composable rules.
 
@@ -423,6 +423,40 @@ Acceptance:
 - Presentation is distinguishable without color alone.
 
 References: `02-game-design.md`, `05-ux-accessibility.md`.
+
+Implementation summary:
+
+- Extended `SugartrailBoard.Cell` with `frosting_layers` and `locked`
+  fields and a new `CellKind.FROSTING` (kind=3). FROSTING cells are
+  frosted empty floors that refill like EMPTY cells and decrement
+  when their piece is matched.
+- Added `SugartrailBoardConfig.blockers` (Array of `{x, y, type,
+  layers}` Dictionaries) validated at construction. `Board.apply_locks_to_pieces()`
+  attaches the LOCKED locks to refilled pieces.
+- Added `EventKind.BLOCKER_DAMAGE` (frosting layer removed; carries
+  `layers_after`) and `EventKind.BLOCKER_BREAK` (last frosting layer
+  removed, or locked piece released by special activation).
+- `Rules.find_runs` excludes FROSTING cells (they are not pieces).
+  Locked cells still participate in match detection but cannot be
+  removed by a 3-run alone — only by a special activation whose
+  cleared list contains the cell.
+- `Resolution._resolve_cycle` increments `removed_count` for matched
+  AND specially-cleared cells; locked cells skip the removal and
+  emit BLOCKER_BREAK; frosted cells decrement and emit
+  BLOCKER_DAMAGE / BLOCKER_BREAK.
+- `Resolution.fill_random` skips FROSTING cells' initial fill (they
+  are EMPTY for refill purposes); gravity is unchanged
+  (BLOCKED-only floor).
+- `LevelRecipe.SCHEMA_VERSION` bumped to 2. New optional `blockers`
+  array field. `migration_v1_to_v2` adds `blockers: []` and bumps
+  version. `load_from_file` auto-migrates before validation, so
+  existing v1 curated levels still load.
+- Two new curated recipes: `l11-frosting-intro.json` (5 frosted
+  cells, layers 1..2) and `l12-locked-cells.json` (4 locked cells).
+  Both pass `has_opening_move` and load through the schema v2 path.
+- `Tutorial.Catalog` extended with frosting / locked intro keys and
+  English translations.
+- Engine version bumped to 0.4.0. Replay fixtures updated.
 
 ### Step 16: Implement remaining launch objectives
 

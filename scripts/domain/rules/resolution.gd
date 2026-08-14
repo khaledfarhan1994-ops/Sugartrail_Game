@@ -18,6 +18,10 @@ extends RefCounted
 ## area-clear, and color-bomb specials. Per cycle, SPECIAL_CREATE
 ## events are emitted first, then SPECIAL_ACTIVATE (carrying the
 ## cleared-cell list), then REMOVE for the actual cells cleared.
+##
+## Step 15 adds BLOCKER_DAMAGE (a frosting layer was removed at a
+## cell that still has layers remaining) and BLOCKER_BREAK (the
+## last frosting layer was removed or a locked cell was released).
 enum EventKind {
 	REMOVE = 0,
 	MOVE = 1,
@@ -26,6 +30,8 @@ enum EventKind {
 	CASCADE_END = 4,
 	SPECIAL_CREATE = 5,
 	SPECIAL_ACTIVATE = 6,
+	BLOCKER_DAMAGE = 7,
+	BLOCKER_BREAK = 8,
 }
 
 # ----------------------------------------------------------------------------
@@ -206,36 +212,79 @@ static func _resolve_cycle(board: Board, runs: Array,
 	for c in activation_result["cleared"]:
 		var cc: Coord = c
 		to_remove["%d,%d" % [cc.x, cc.y]] = cc
+	# Track which cells were specifically targeted by a special
+	# activation (vs being in a 3-run). Locked cells are only
+	# releasable by special activations, not by matches alone.
+	var activated_keys: Dictionary = {}
+	for c in activation_result["cleared"]:
+		var ac: Coord = c
+		activated_keys["%d,%d" % [ac.x, ac.y]] = true
 	# Lex-sort removed cells; emit REMOVE events; mutate board.
 	var removed_keys: Array = []
 	for k in to_remove.keys():
 		removed_keys.append(k)
 	removed_keys.sort_custom(func(a, b):
-		var pa: PackedStringArray = a.split(",")
-		var pb: PackedStringArray = b.split(",")
-		var ax: int = int(pa[0])
-		var ay: int = int(pa[1])
-		var bx: int = int(pb[0])
-		var by: int = int(pb[1])
-		if ay != by:
-			return ay < by
-		return ax < bx)
+			var pa: PackedStringArray = a.split(",")
+			var pb: PackedStringArray = b.split(",")
+			var ax: int = int(pa[0])
+			var ay: int = int(pa[1])
+			var bx: int = int(pb[0])
+			var by: int = int(pb[1])
+			if ay != by:
+				return ay < by
+			return ax < bx)
 	var removed_count: int = 0
 	for k in removed_keys:
 		var cc: Coord = to_remove[k]
 		var cell: Cell = board.cell_at(cc)
 		if cell == null or not cell.is_piece():
 			continue
+		# Step 15: locked cells cannot be removed by matches. The
+		# match runs around the locked cell; the locked piece stays.
+		# A special activation that targets the locked cell bypasses
+		# the lock and releases it via a BLOCKER_BREAK event.
+		var was_in_match_only: bool = not activated_keys.has(k)
+		if cell.locked and was_in_match_only:
+			continue
 		removed_count += 1
 		if removed_count > MAX_REMOVES_PER_CYCLE:
 			push_error("resolve: cycle removed too many cells; possible bug")
 			return removed_count
 		var piece_kind: int = cell.piece.kind_id
+		# Step 15: frosting damage/break. If the cell was PIECE with
+		# frosting_layers > 0, decrement the layers; if the result
+		# is 0, transition to EMPTY (BLOCKER_BREAK); otherwise stay
+		# FROSTING with the new layers (BLOCKER_DAMAGE).
+		var had_frosting: bool = cell.frosting_layers > 0
+		var layers_after: int = cell.frosting_layers - 1 if had_frosting else 0
+		var was_locked: bool = cell.locked
 		board.set_empty(cc)
+		if had_frosting:
+			if layers_after <= 0:
+				# Last layer: break the frosting entirely. The cell
+				# becomes EMPTY (not FROSTING with layers=0) so the
+				# refill can spawn a new piece in the cleared slot.
+				cell.kind = CellKind.EMPTY
+				cell.frosting_layers = 0
+				cell.locked = false
+				result.events.append(DomainEvent.new(
+					EventKind.BLOCKER_BREAK, [cc], piece_kind, cascade_index,
+					-1, null, [], 0))
+			else:
+				cell.frosting_layers = layers_after
+				cell.locked = false
+				result.events.append(DomainEvent.new(
+					EventKind.BLOCKER_DAMAGE, [cc], piece_kind, cascade_index,
+					-1, null, [], layers_after))
+		elif was_locked:
+			# Locked piece cleared by a special. Emit BLOCKER_BREAK
+			# and release the lock by clearing the locked flag.
+			cell.locked = false
+			result.events.append(DomainEvent.new(
+				EventKind.BLOCKER_BREAK, [cc], piece_kind, cascade_index))
 		result.events.append(DomainEvent.new(
 			EventKind.REMOVE, [cc], piece_kind, cascade_index))
 	return removed_count
-
 # ----------------------------------------------------------------------------
 # Step 14: combo activation
 # ----------------------------------------------------------------------------
@@ -313,6 +362,12 @@ static func _apply_combo(board: Board, result: CascadeResult,
 ## cells below it, stopping at the bottom row, a blocked cell, or the
 ## first piece. Blocked cells act as solid floors.
 ##
+## Step 15: FROSTING cells are EMPTY for gravity purposes (the
+## frosting is purely visual decoration). Pieces can fall into
+## FROSTING cells just like EMPTY cells. BLOCKED cells remain the
+## only solid floors. The frosting is preserved across cascades
+## and decremented when the cell's piece is cleared.
+##
 ## Algorithm: process columns left-to-right, and within each column
 ## bottom-to-top. Maintain a "land_y" pointer that starts at the
 ## bottom row and rises as pieces land. Any empty cell above the
@@ -347,6 +402,12 @@ static func _apply_gravity(board: Board, result: CascadeResult, cascade_index: i
 ## cell gets a new random piece with a kind_id in [0, palette_size).
 ## Spawn order is column-major (y=0..height-1, x=0..width-1) so the
 ## event log is byte-for-byte reproducible.
+##
+## Step 15: FROSTING cells (frosted empty floors) are also refilled.
+## The frosting decoration persists across the refill (we set the
+## piece but keep frosting_layers), so the cell becomes PIECE with
+## frosting_layers > 0 — visually frosted and matchable, and the
+## next clear of the piece will damage the frosting again.
 static func _refill(board: Board, rng: Rng, result: CascadeResult, cascade_index: int) -> void:
 	var palette: int = board.config.normal_palette_size
 	for x in range(board.config.width):
@@ -355,11 +416,20 @@ static func _refill(board: Board, rng: Rng, result: CascadeResult, cascade_index
 			var cell: Cell = board.cell_at(c)
 			if cell.is_piece() or cell.is_blocked():
 				continue
-			if not cell.is_empty():
+			# FROSTING cells are EMPTY for refill purposes — the
+			# frosting decoration is preserved by set_piece on
+			# FROSTING (it transitions kind to PIECE but keeps
+			# frosting_layers).
+			if cell.kind != CellKind.EMPTY and cell.kind != CellKind.FROSTING:
 				continue
 			var kind: int = rng.rand_int(palette)
 			var piece: Piece = Piece.new(kind)
 			board.set_piece(c, piece)
+			# Preserve frosting_layers if the cell was FROSTING.
+			if cell.kind == CellKind.PIECE and cell.frosting_layers > 0:
+				# already set by set_piece (preserved through the
+				# helper; see set_piece_with_frosting below).
+				pass
 			result.events.append(DomainEvent.new(
 				EventKind.SPAWN, [c], kind, cascade_index))
 
@@ -470,11 +540,16 @@ class DomainEvent:
 	var special_origin: Coord = null
 	## Cells cleared by an activation. Empty for non-activate events.
 	var cleared: Array = []
+	## Step 15: for BLOCKER_DAMAGE this carries the layers remaining
+	## after the damage (0 when the last layer was removed but the
+	## event is also a BREAK — we emit a separate BREAK event instead).
+	## -1 for non-blocker events.
+	var layers_after: int = -1
 
 	func _init(p_kind: int, p_coords: Array = [],
 			p_piece_kind_id: int = -1, p_cascade: int = -1,
 			p_special_kind: int = -1, p_special_origin: Coord = null,
-			p_cleared: Array = []) -> void:
+			p_cleared: Array = [], p_layers_after: int = -1) -> void:
 		kind = p_kind
 		coords = p_coords
 		piece_kind_id = p_piece_kind_id
@@ -482,6 +557,7 @@ class DomainEvent:
 		special_kind = p_special_kind
 		special_origin = p_special_origin
 		cleared = p_cleared
+		layers_after = p_layers_after
 
 	func to_dict() -> Dictionary:
 		var coords_out: Array = []
@@ -500,6 +576,7 @@ class DomainEvent:
 			"special_kind": special_kind,
 			"special_origin": null if special_origin == null else special_origin.to_dict(),
 			"cleared": cleared_out,
+			"layers_after": layers_after,
 		}
 
 	func _to_debug_string() -> String:

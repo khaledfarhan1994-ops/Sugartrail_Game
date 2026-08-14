@@ -49,6 +49,11 @@ static func orthogonal_neighbor_coords(board: Board, c: Coord) -> Array:
 ## board. Returns an Array of Arrays of CellCoord (the cells in each
 ## run). A cell may appear in both a horizontal and a vertical run
 ## when runs intersect (the '+' case).
+##
+## Step 15: FROSTING cells are not pieces — they break runs (no
+## match can start or continue through a frosted cell). LOCKED cells
+## hold a piece and participate in the run finder; the lock does not
+## affect match detection (the piece still counts).
 static func find_runs(board: Board) -> Array:
 	var runs: Array = []
 	for cell in board._cells:
@@ -97,6 +102,14 @@ static func _extend_v_run(board: Board, c: Coord) -> Array:
 		y += 1
 	return run
 
+## Step 15: returns true if the cell is "swap-restricted" because
+## it is a FROSTING cell (no piece to swap).
+static func is_frosting_blocked(board: Board, c: Coord) -> bool:
+	if not board.in_bounds(c.x, c.y):
+		return true
+	var cell: Cell = board.cell_at(c)
+	return cell == null or cell.kind == CellKind.FROSTING
+
 # ----------------------------------------------------------------------------
 # Legal swap
 # ----------------------------------------------------------------------------
@@ -110,6 +123,11 @@ static func _extend_v_run(board: Board, c: Coord) -> Array:
 ## special+special combo. Both cells must hold SpecialPieces (their
 ## kinds feed the combinator); a swap of one special with a normal
 ## piece still requires a 3-run (Step 13 swap-triggered activation).
+##
+## Step 15: a swap whose endpoints are both FROSTING is rejected
+## (no pieces to swap). LOCKED cells hold a piece and the lock does
+## not block the swap itself; the lock only blocks match removal
+## (handled in resolution._resolve_cycle).
 static func try_swap(board: Board, a: Coord, b: Coord) -> bool:
 	if not in_bounds(board, a) or not in_bounds(board, b):
 		return false
@@ -149,6 +167,9 @@ static func try_swap(board: Board, a: Coord, b: Coord) -> bool:
 ## is an orthogonal adjacent pair of piece cells whose swap creates
 ## at least one match, OR an orthogonal adjacent pair both holding
 ## SpecialPieces (a special+special combo).
+##
+## Step 15: pairs whose endpoints are both FROSTING are skipped
+## (try_swap would reject them — there is no piece to swap).
 static func enumerate_legal_swaps(board: Board) -> Array:
 	var moves: Array = []
 	var seen := {}

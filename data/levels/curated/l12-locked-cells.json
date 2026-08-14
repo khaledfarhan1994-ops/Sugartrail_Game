@@ -1,0 +1,28 @@
+{
+  "recipe_id": "l12-locked-cells",
+  "version": 2,
+  "chapter": 1,
+  "index_in_chapter": 1,
+  "board_w": 6,
+  "board_h": 8,
+  "palette": 4,
+  "seed": 1202,
+  "moves": 22,
+  "target_kind": 1,
+  "target_total": 8,
+  "star_one": 90,
+  "star_two": 200,
+  "star_three": 360,
+  "intro_text": "tutorial.locked.intro",
+  "tutorial": [
+    "tutorial.prompt.locked.intro",
+    "tutorial.prompt.locked.release"
+  ],
+  "avoid_initial_matches": true,
+  "blockers": [
+    {"x": 1, "y": 7, "type": "LOCKED", "layers": 1},
+    {"x": 4, "y": 6, "type": "LOCKED", "layers": 1},
+    {"x": 2, "y": 4, "type": "LOCKED", "layers": 1},
+    {"x": 0, "y": 2, "type": "LOCKED", "layers": 1}
+  ]
+}

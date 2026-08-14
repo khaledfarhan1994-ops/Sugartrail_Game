@@ -113,11 +113,11 @@ func test_replay_with_specials_is_deterministic() -> void:
 	assert_eq(r1.result_hash, r2.result_hash)
 	assert_eq(r1.total_events, r2.total_events)
 
-func test_engine_version_bumped_for_step_14() -> void:
+func test_engine_version_bumped_for_step_15() -> void:
 	assert_eq(Version.ENGINE_MAJOR, 0)
-	assert_eq(Version.ENGINE_MINOR, 3)
+	assert_eq(Version.ENGINE_MINOR, 4)
 	assert_eq(Version.ENGINE_PATCH, 0)
-	assert_eq(Version.engine_version(), "0.3.0")
+	assert_eq(Version.engine_version(), "0.4.0")
 
 func test_engine_version_mismatch_invalidates_old_logs() -> void:
 	var log := Replay.ActionLog.new()
@@ -126,7 +126,7 @@ func test_engine_version_mismatch_invalidates_old_logs() -> void:
 	var b := _empty_board(4, 4)
 	b.set_piece(Coord.new(0, 0), Piece.new(0))
 	log.initial_board = b.to_snapshot()
-	var result: Replay.ReplayResult = Replay.replay(log, "0.3.0-new")
+	var result: Replay.ReplayResult = Replay.replay(log, "0.4.0-new")
 	assert_false(result.ok)
 	assert_true(result.last_error_message.find("engine version") >= 0)
 

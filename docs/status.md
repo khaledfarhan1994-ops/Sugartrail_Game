@@ -1,18 +1,19 @@
 # Project Status
 
-Last updated: 2026-08-13 (Step 14 complete; Step 15 next)
+Last updated: 2026-08-14 (Step 15 complete; Step 16 next)
 
 ## Current milestone
 
-Phase C, Step 14: Implement special-piece combinations.
-Steps 01-13 are complete. Step 14 delivers a 10-entry combinator
-matrix (STRIPED+STRIPED, STRIPED+COLOR_BOMB, STRIPED+AREA,
-AREA+AREA, COLOR_BOMB+COLOR_BOMB, COLOR_BOMB+AREA) with
-direction-invariant cleared-cell sets, player-swappable activation
-(combo swap is legal even without a 3-run), blocking-cell-safe
-cleared lists, and full replay determinism. 25 new fixtures bring
-the total to 170 unit tests. The engine version is bumped from 0.2.0
-to 0.3.0; existing replay fixtures use the new version literal.
+Phase C, Step 15: Implement launch blockers (frosting + locked cells).
+Steps 01-14 are complete. Step 15 adds one-hit / multi-layer frosting
+and locked cells as composable rules. `CellKind` grows FROSTING (=3);
+per-cell `frosting_layers` and `locked` fields; resolution emits
+BLOCKER_DAMAGE (per-layer decrement) and BLOCKER_BREAK (last layer or
+special-driven unlock). Level recipe schema is bumped to v2 with an
+optional `blockers` field; existing v1 recipes auto-migrate. Two new
+curated levels (l11-frosting-intro, l12-locked-cells) exercise the
+new mechanics. 28 new fixtures bring the total to 198 unit tests.
+The engine version is bumped from 0.3.0 to 0.4.0.
 
 ## Confirmed decisions
 
@@ -44,7 +45,7 @@ to 0.3.0; existing replay fixtures use the new version literal.
 | Headless project import | `tools/build/godot/godot --headless --import` | 2026-08-13 — pass (Step 01 + Step 02 acceptance) |
 | Headless boot scene | `tools/build/godot/godot --headless --path . --quit-after 1 res://scenes/boot/boot.tscn` | 2026-08-13 — pass; boot.gd printed ready timestamp |
 | Vertical slice smoke profile | `tools/build/godot/godot --headless --path . res://scenes/vertical_slice/vertical_slice_smoke.tscn` | 2026-08-13 — pass; emits STEP12_LOAD, STEP12_SWAP (×8), STEP12_WIN, STEP12_END. Level 1 won in 684 ms with 8 swaps (score 390, seed 364017463632246932). |
-| Run unit tests | `bash tools/test.sh` | 2026-08-13 — exit 0, 170/170 passing (board 10, rng 9, rules 13, version 3, resolution 14, replay 12, gameplay 7, session 16, levels_validation 10, levels_curated 11, specials_data 10, specials_activation 13, specials_integration 17, combos 18, combos_integration 7) |
+| Run unit tests | `bash tools/test.sh` | 2026-08-14 — exit 0, 198/198 passing (board 10, rng 9, rules 13, version 3, resolution 14, replay 12, gameplay 7, session 16, levels_validation 10, levels_curated 13, specials_data 10, specials_activation 13, specials_integration 17, combos 18, combos_integration 7, blockers 16, blockers_layers 6, blockers_integration 6) |
 | Lint GDScript | `gdlint scripts/ tests/` | 2026-08-13 — Step 13 new files lint clean; 5 pre-existing errors from Steps 05-06 remain (4 from before Step 13, plus 1 new enum-after-class error of the same family). Out of scope for Step 13. |
 | One-shot CI run | `bash tools/ci.sh` | 2026-08-13 — verify+disk+tests pass; lint fails on 8 pre-existing Step 05-06 errors |
 | Android APK export | `tools/build/godot/godot --headless --path . --export-debug "Android Debug" "build/test.apk"` | 2026-08-13 — blocked by Godot 4.3 generic "configuration errors" message. See Step 12 Blockers in `docs/11-implementation-roadmap.md`. |
