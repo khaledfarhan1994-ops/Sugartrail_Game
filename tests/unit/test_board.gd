@@ -2,7 +2,7 @@ extends GutTest
 ## Domain board data model — Step 05 fixtures.
 
 const Board = preload("res://scripts/domain/board/board.gd")
-const Coord = preload("res://scripts/domain/board/board.gd").CellCoord
+const Coord = Board.CellCoord
 
 func _make_empty_config(w: int = 6, h: int = 8, palette: int = 6, blocked: Array = []) -> Board.BoardConfig:
 	return Board.BoardConfig.new(w, h, palette, blocked)

@@ -8,6 +8,7 @@ on:
 
 jobs:
   linux:
+    name: Linux (lint + unit tests)
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -42,5 +43,56 @@ jobs:
           path: |
             tools/build/cache/gut.log
             tools/build/cache/gut.clean.log
+            ~/.local/share/godot/app_userdata/Sugartrail/gut_results.xml
+          if-no-files-found: ignore
+
+  android:
+    name: Android (lint + unit tests + debug APK)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Python (for gdlint)
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install gdlint
+        run: pip install gdtoolkit
+
+      - name: Install pinned toolchain (Godot + Android SDK)
+        run: bash tools/build/setup.sh
+
+      - name: Run CI checks (lint + unit tests)
+        run: bash tools/ci.sh
+
+      - name: Build debug APK
+        run: bash tools/build/build-android.sh
+
+      - name: Upload debug APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sugartrail-debug-apk
+          path: build/sugartrail-debug.apk
+          if-no-files-found: ignore
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gut-results-android
+          path: |
+            tools/build/cache/gut.log
+            tools/build/cache/gut.clean.log
+            tools/build/cache/android-build.log
             ~/.local/share/godot/app_userdata/Sugartrail/gut_results.xml
           if-no-files-found: ignore

@@ -128,7 +128,7 @@ See `12-risk-register.md` for the complete register.
 - `tools/build/TOOLCHAIN.txt`: pinned Godot, Java, Android SDK, package ID, orientation.
 - `tools/build/{setup,verify,cleanup,disk-gate,test}.sh`: idempotent toolchain installer, one-shot verification, cache cleanup, disk gate, test runner.
 - `tools/{test,ci}.sh`: convenience wrappers for the test runner and the unified CI command.
-- `.github/workflows/ci.yml`: GitHub Actions pipeline mirroring `tools/ci.sh`.
+- `.github/workflows/ci.yml`: GitHub Actions pipeline with two jobs — `linux` (lint + unit tests) and `android` (lint + unit tests + debug APK build via `tools/build/build-android.sh`). Both jobs run `tools/build/setup.sh` to install the pinned Godot + Android SDK toolchain. The `android` job also uploads `build/sugartrail-debug.apk` as an artifact.
 - `docs/01-13`: approved SDLC and roadmap documents.
 - `docs/14-agent-handoff.md`: current resumable context.
 - `docs/work-log.md`: append-only execution history.

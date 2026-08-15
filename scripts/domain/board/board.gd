@@ -47,12 +47,6 @@ class CellCoord:
 	static func from_dict(d: Dictionary) -> CellCoord:
 		return CellCoord.new(int(d.get("x", 0)), int(d.get("y", 0)))
 
-# ----------------------------------------------------------------------------
-# Cell and piece types
-# ----------------------------------------------------------------------------
-
-const MAX_PIECE_TYPES: int = 64
-
 ## A single grid cell. Stores either a piece, an empty hole, a
 ## blocked cell (structural, never holds a piece — set at level
 ## load), or a frosted cell (sticky floor that survives across
@@ -82,6 +76,12 @@ enum SpecialKind {
 	COLOR_BOMB = 3,   # 5-in-a-line; clears all pieces of its kind_id when activated
 	AREA = 4,         # T or L shape; clears a 3x3 box (clipped) when activated
 }
+
+# ----------------------------------------------------------------------------
+# Cell and piece types
+# ----------------------------------------------------------------------------
+
+const MAX_PIECE_TYPES: int = 64
 
 ## Piece kind ID. Pieces 0..MAX_PIECE_TYPES-1 are normal pieces.
 ## Special pieces arrive in Step 13 (id range reserved there).
@@ -269,7 +269,8 @@ class BoardConfig:
 		if width <= 0 or height <= 0:
 			push_error("BoardConfig: width and height must be positive (got %dx%d)" % [width, height])
 		if normal_palette_size <= 0 or normal_palette_size > MAX_PIECE_TYPES:
-			push_error("BoardConfig: normal_palette_size %d out of range 1..%d" % [normal_palette_size, MAX_PIECE_TYPES])
+			push_error("BoardConfig: normal_palette_size %d out of range 1..%d"
+					% [normal_palette_size, MAX_PIECE_TYPES])
 		var seen := {}
 		for c in blocked:
 			if not (c is CellCoord):
@@ -544,7 +545,8 @@ func validate() -> bool:
 				push_error("validate: PIECE cell %s has null Piece" % cell.coord._to_debug_string())
 				return false
 			if cell.piece.kind_id < 0 or cell.piece.kind_id >= config.normal_palette_size:
-				push_error("validate: PIECE cell %s has invalid kind_id %d" % [cell.coord._to_debug_string(), cell.piece.kind_id])
+				push_error("validate: PIECE cell %s has invalid kind_id %d"
+						% [cell.coord._to_debug_string(), cell.piece.kind_id])
 				return false
 		elif cell.kind == CellKind.EMPTY:
 			if cell.piece != null:

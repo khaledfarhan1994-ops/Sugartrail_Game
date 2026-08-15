@@ -18,7 +18,7 @@ const SpecialPiece = Board.SpecialPiece
 # Adjacency and bounds
 # ----------------------------------------------------------------------------
 
-static var ORTHOGONAL_DIRS: Array = [
+static var orthogonal_dirs: Array = [
 	Coord.new( 0, -1),  # up
 	Coord.new( 1,  0),  # right
 	Coord.new( 0,  1),  # down
@@ -35,7 +35,7 @@ static func is_orthogonal_neighbor(a: Coord, b: Coord) -> bool:
 
 static func orthogonal_neighbor_coords(board: Board, c: Coord) -> Array:
 	var out: Array = []
-	for d in ORTHOGONAL_DIRS:
+	for d in orthogonal_dirs:
 		var n: Coord = Coord.new(c.x + d.x, c.y + d.y)
 		if in_bounds(board, n):
 			out.append(n)
@@ -63,7 +63,9 @@ static func find_runs(board: Board) -> Array:
 		# Horizontal run starting at this cell only if the cell to
 		# the LEFT is not the same kind (so we don't double-count).
 		var left_cell: Cell = board.cell_at(Coord.new(c.x - 1, c.y))
-		var start_of_h: bool = left_cell == null or not left_cell.is_piece() or left_cell.piece.kind_id != cell.piece.kind_id
+		var start_of_h: bool = (left_cell == null
+				or not left_cell.is_piece()
+				or left_cell.piece.kind_id != cell.piece.kind_id)
 		if start_of_h:
 			var h_run: Array = _extend_h_run(board, c)
 			if h_run.size() >= 3:
@@ -71,7 +73,9 @@ static func find_runs(board: Board) -> Array:
 		# Vertical run starting at this cell only if the cell ABOVE
 		# is not the same kind.
 		var up_cell: Cell = board.cell_at(Coord.new(c.x, c.y - 1))
-		var start_of_v: bool = up_cell == null or not up_cell.is_piece() or up_cell.piece.kind_id != cell.piece.kind_id
+		var start_of_v: bool = (up_cell == null
+				or not up_cell.is_piece()
+				or up_cell.piece.kind_id != cell.piece.kind_id)
 		if start_of_v:
 			var v_run: Array = _extend_v_run(board, c)
 			if v_run.size() >= 3:
