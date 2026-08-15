@@ -323,11 +323,36 @@ layer wires three event sources to it:
    `SugartrailRewards.grant_rewards` again; the ledger ensures no
    duplicate grants.
 
+### 6.4 Localisation foundation (Step 21)
+
+Every player-facing string flows through a stable key resolved by
+`SugartrailLocale.LocaleCatalog.translate(key)`. The catalog ships
+in `data/locale/<code>.json` (one file per language); the active
+language is `SaveData.SettingsRecord.language`. Unknown keys return
+the empty string — the presentation layer logs and shows a
+placeholder. Misconfigured fallback chains (a → b → a) terminate
+after `MAX_FALLBACK_HOPS=5` walks.
+
+Launch languages:
+
+- `en` (English, fallback target).
+- `es` (Spanish, falls back to `en`).
+
+Adding a language is a data-only change: drop `data/locale/<code>.json`
+and reference the code in the boot loader. The catalog is a runtime
+in-memory dictionary so unit tests pass synthetic catalogs without
+touching the filesystem.
+
+The settings preview UI uses `LocaleCatalog.translate_for(code,
+key)` to show the player a translated string without committing to
+the active code change.
+
 ## 7. Player settings
 
 - Music volume, effects volume, haptics toggle.
 - Reduced motion toggle.
 - High-contrast mode.
 - Symbol-forward piece display.
+- Language picker (driven by `SugartrailLocale`; default `en`).
 - Reset progress behind a clearly labeled confirmation flow.
 - Credits and third-party licenses.

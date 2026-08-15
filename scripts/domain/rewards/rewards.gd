@@ -20,6 +20,11 @@ extends RefCounted
 ##     reduced to fit but the reward is still marked as claimed.
 ##   - Reopening the result screen cannot reclaim — the ledger is
 ##     persistent.
+##   - Reward labels (`Spec.label`) are localization keys (the
+##     pattern `reward.label.<reward_key>`). Step 21 wires the
+##     presentation layer to resolve them through
+##     `SugartrailLocale.translate`. The default catalog keeps the
+##     inline English strings in `default_source()` as a fallback.
 ##
 ## Integration contract (Step 20):
 ##
@@ -201,23 +206,23 @@ static func default_source() -> RewardSource:
 	out.append(RewardSpec.new(
 			"stars_total:5", TriggerKind.STARS_TOTAL, "", 5,
 			[{"kind_id": Booster.BoosterKind.SWAP_RETRY, "count": 1}],
-			"First 5 stars"))
+			"reward.label.stars_total:5"))
 	out.append(RewardSpec.new(
 			"stars_total:15", TriggerKind.STARS_TOTAL, "", 15,
 			[{"kind_id": Booster.BoosterKind.SWAP_RETRY, "count": 2}],
-			"15-star milestone"))
+			"reward.label.stars_total:15"))
 	out.append(RewardSpec.new(
 			"stars_total:30", TriggerKind.STARS_TOTAL, "", 30,
 			[{"kind_id": Booster.BoosterKind.SWAP_RETRY, "count": 3}],
-			"30-star milestone"))
+			"reward.label.stars_total:30"))
 	out.append(RewardSpec.new(
 			"stars_total:60", TriggerKind.STARS_TOTAL, "", 60,
 			[{"kind_id": Booster.BoosterKind.SWAP_RETRY, "count": 5}],
-			"60-star milestone"))
+			"reward.label.stars_total:60"))
 	out.append(RewardSpec.new(
 			"stars_total:100", TriggerKind.STARS_TOTAL, "", 100,
 			[{"kind_id": Booster.BoosterKind.SWAP_RETRY, "count": 8}],
-			"100-star milestone"))
+			"reward.label.stars_total:100"))
 	# Per-chapter completion. The default catalog covers 3 chapters
 	# (ch1-sweet-trail, ch2-cascade-master, ch3-blocked-confection).
 	for ch_id in ["ch1-sweet-trail", "ch2-cascade-master", "ch3-blocked-confection"]:
@@ -225,7 +230,7 @@ static func default_source() -> RewardSource:
 				"chapter_complete:" + ch_id, TriggerKind.CHAPTER_COMPLETE,
 				ch_id, 0,
 				[{"kind_id": Booster.BoosterKind.SWAP_RETRY, "count": 2}],
-				"Completed " + ch_id))
+				"reward.label.chapter_complete:" + ch_id))
 	# Tutorial completion — one Swap Retry per tutorial prompt the
 	# player sees. The prompt ids are matched verbatim against the
 	# TutorialFlags.seen map.
@@ -239,8 +244,21 @@ static func default_source() -> RewardSource:
 				"tutorial_completed:" + tut_id, TriggerKind.TUTORIAL_COMPLETE,
 				tut_id, 0,
 				[{"kind_id": Booster.BoosterKind.SWAP_RETRY, "count": 1}],
-				"Tutorial: " + tut_id))
+				"reward.label.tutorial_completed:" + tut_id))
 	return RewardSource.new(out)
+
+## Resolve a RewardSpec's label through a locale catalog. Returns
+## the catalog translation when available; falls back to the spec's
+## inline `label` (which is itself a localization key in the
+## default catalog) and finally to the spec key. The presentation
+## layer calls this once per granted reward to render the result
+## toast.
+static func localize_label(spec: RewardSpec, catalog) -> String:
+	if catalog != null:
+		var translated: String = catalog.translate(spec.label)
+		if translated != "":
+			return translated
+	return spec.label
 
 ## Count a chapter's total earned stars from SaveData levels.
 static func _chapter_stars(save_data, chapter_level_ids: Array) -> int:

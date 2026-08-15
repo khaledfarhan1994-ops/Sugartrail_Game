@@ -34,10 +34,10 @@ record the answer in `decisions.md` and `work-log.md`.
 ## Current execution state
 
 - Current phase: Phase E, Player Progress and Experience.
-- Current step: Step 20 complete.
-- Step status: Steps 01-20 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
-- Last completed step: Step 20 (rewards and balanced booster economy: `SugartrailRewards` RewardSpec/RewardSource/RewardResult, `ClaimedRewards` ledger persisted in `SaveData` (schema v2), `default_source()` catalog grants Swap Retries from STARS_TOTAL/CHAPTER_COMPLETE/TUTORIAL_COMPLETE triggers, `grant_rewards` is the single integration entry point, `tools/sim_economy.gd` asserts the documented balance (12 from level play + 4 from tutorials = 16 max); 19 new fixtures for 306 total tests).
-- Next action: execute Step 21 — localisation foundation (TBD: see `docs/11-implementation-roadmap.md` Step 21 description).
+- Current step: Step 21 complete.
+- Step status: Steps 01-21 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
+- Last completed step: Step 21 (localisation foundation: `SugartrailLocale` Locale/LocaleCatalog, `default_catalog()` en+es, JSON loaders at `data/locale/`, `translate(key)` with bounded fallback chains, `translate_for(code, key)` for the settings preview; tutorial `english(key, catalog)` + reward `localize_label(spec, catalog)` resolve through the catalog; 15 new fixtures for 321 total tests).
+- Next action: execute Step 22 — settings + accessibility screen (TBD: see `docs/11-implementation-roadmap.md` Step 22 description).
 
 ## Build, test, and verification commands
 

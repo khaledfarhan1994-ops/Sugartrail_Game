@@ -621,7 +621,7 @@ References: `01-product-requirements.md`, `02-game-design.md`, `12-risk-register
 
 ### Step 21: Complete settings, accessibility, and localization foundation
 
-Status: Not started
+Status: Partial — localisation foundation complete (2026-08-15); settings + accessibility screen is Step 22.
 
 Goal: Meet launch accessibility and localization requirements across all current screens.
 
@@ -638,6 +638,8 @@ Acceptance:
 - Pieces remain distinguishable in monochrome and common color-vision simulations.
 - All required screens pass resolution, reduced-motion, audio-off, and haptics-off checks.
 - Settings persist across relaunch.
+
+What shipped (Step 21 domain): `SugartrailLocale` Locale + LocaleCatalog with `default_catalog()` (en + es), bounded fallback chains (`MAX_FALLBACK_HOPS=5`), JSON loaders reading `data/locale/<code>.json`, `translate` + `translate_for` helpers. Tutorial and reward labels now resolve through the catalog (`SugartrailTutorial.english(key, catalog)`, `SugartrailRewards.localize_label(spec, catalog)`). `SaveData.SettingsRecord.language` is the active-language source of truth. 15 new fixtures. Settings screen + accessibility UI is Step 22.
 
 References: `05-ux-accessibility.md`, `06-art-audio.md`.
 

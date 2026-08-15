@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "code": "es",
+  "name": "Español",
+  "fallback": "en",
+  "strings": {
+    "tutorial.prompt.swap": "Desliza, o toca un vecino, para intercambiar.",
+    "tutorial.prompt.match": "Tres iguales se eliminan.",
+    "tutorial.prompt.objective": "Recoge el color destacado.",
+    "tutorial.prompt.move_limit": "Tienes un número limitado de movimientos.",
+    "tutorial.prompt.frosting.intro": "Las células heladas cubren piezas — combínalas para dañar el glaseado.",
+    "tutorial.prompt.score.target": "Algunos niveles necesitan una puntuación, no un conjunto de piezas.",
+    "reward.label.stars_total:5": "Primeras 5 estrellas",
+    "reward.label.stars_total:15": "Hito de 15 estrellas",
+    "settings.title": "Ajustes",
+    "settings.music": "Música",
+    "settings.effects": "Efectos",
+    "settings.haptics": "Vibración",
+    "settings.language": "Idioma"
+  }
+}

@@ -8,6 +8,12 @@ extends RefCounted
 ## it never obscures the required controls (the prompt lives in a
 ## strap below the board, never overlapping it).
 ##
+## Step 21 wires the keys through `SugartrailLocale.translate`:
+## `tutorial.english(key)` is now a thin wrapper that calls the
+## active locale catalog with an English fallback. The English
+## strings still live in `SugartrailLocale.default_catalog()` (and
+## on disk in `data/locale/en.json`) so tests can pin them.
+##
 ## The tutorial itself is pure data. The presentation layer (a
 ## future Scene) reads `TutorialPack.from_recipe()` and animates
 ## the prompts. This module just gives the domain a stable
@@ -181,11 +187,18 @@ class Catalog:
 			PROMPT_SCORE_TARGET,
 		]
 
-## English translation strings. Step 21 replaces this with a real
-## .po file. The keys must match Catalog.known_keys(). Tests pin
-## these strings so that any rewording is an explicit, recorded
-## decision.
-static func english(key: String) -> String:
+## English translation strings. Step 21 wires this through
+## `SugartrailLocale`. The catalog is the source of truth for
+## every player-facing string; the inline match block is preserved
+## as a fast-path fallback for tests that don't build a catalog
+## (and as documentation of the keys). When a catalog is in scope
+## `english(key)` returns `catalog.translate(key)` first, then
+## falls back to the inline match.
+static func english(key: String, catalog = null) -> String:
+	if catalog != null:
+		var translated: String = catalog.translate(key)
+		if translated != "":
+			return translated
 	match key:
 		Catalog.STRAP_INTRO: return "Welcome to Sugartrail. Swap pieces to clear the board."
 		Catalog.PROMPT_SELECT: return "Tap a piece to select it."
