@@ -597,7 +597,7 @@ References: `02-game-design.md`, `03-technical-architecture.md`.
 
 ### Step 20: Add rewards and balanced booster economy
 
-Status: Not started
+Status: Complete (2026-08-15)
 
 Goal: Make boosters earnable without pressure, payment, waiting, or exploits.
 
@@ -614,6 +614,8 @@ Acceptance:
 - Normal level progression never requires inventory.
 - Clock changes cannot corrupt progress or award unlimited rewards.
 - Economy simulation results are recorded.
+
+What shipped: `SugartrailRewards` (`scripts/domain/rewards/rewards.gd`) with `RewardSpec`/`RewardSource`/`RewardResult` types. `default_source()` catalog grants Swap Retries from STARS_TOTAL (5/15/30/60/100 -> 1/2/3/5/8), CHAPTER_COMPLETE (one per chapter -> 2), and TUTORIAL_COMPLETE (one per prompt -> 1). `grant_rewards` is the single integration entry point; idempotent via `ClaimedRewards` ledger persisted in `SaveData`. Save schema bumped to v2; v1->v2 migration inserts an empty ledger. Inventory caps clamp per-kind (99) and total (999); clamping still marks claimed. `tools/sim_economy.gd` walks every launch level at 1/2/3 stars and asserts balance (12 from level play + 4 from tutorials = 16 max). 19 new fixtures in `test_rewards.gd`. Total: 306/306 (305 passing + 1 pre-existing risky pending). Daily-challenge rewards deferred (see `docs/02-game-design.md` §6.2).
 
 References: `01-product-requirements.md`, `02-game-design.md`, `12-risk-register.md`.
 

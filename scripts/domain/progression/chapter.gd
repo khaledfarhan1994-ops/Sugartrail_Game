@@ -112,6 +112,14 @@ class ChapterCatalog:
 				chapter_index[String(lid)] = ci
 			ci += 1
 
+	## Look up a chapter by its id. Returns the Chapter, or null if
+	## no such chapter exists.
+	func by_id(p_id: String) -> Chapter:
+		for ch in chapters:
+			if (ch as Chapter).id == p_id:
+				return ch
+		return null
+
 	static func from_dict(d: Dictionary) -> ChapterCatalog:
 		var ch_in: Variant = d.get("chapters", [])
 		var chs: Array = []
@@ -299,6 +307,11 @@ static func _is_chapter_unlocked(catalog: ChapterCatalog, ch_idx: int,
 ## logic; in particular, replayability: completed_once stays
 ## true once set. best_stars / best_score are monotone up.
 ## Returns true if the SaveData actually changed.
+##
+## Step 20 integration: the caller (result screen / level-end
+## hook) should invoke `SugartrailRewards.grant_rewards` after
+## this returns. The domain layer stays pure and does not
+## import rewards; the application layer owns the wiring.
 static func record_completion(save_data, level_id: String,
 		score: int, stars: int) -> bool:
 	if save_data == null or level_id == "":

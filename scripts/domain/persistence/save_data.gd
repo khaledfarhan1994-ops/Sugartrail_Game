@@ -26,7 +26,7 @@ extends RefCounted
 ##   - Recover from corruption using the backup and a non-technical
 ##     message.
 
-const SAVE_SCHEMA_VERSION: int = 1
+const SAVE_SCHEMA_VERSION: int = 2
 
 ## A single saved level's progression record. The level_id is the
 ## recipe's stable id (e.g. "l1-first-match"). best_score is the
@@ -174,6 +174,49 @@ class TutorialFlags:
 				s[String(k)] = bool(seen_in[k])
 		return TutorialFlags.new(s)
 
+## Set of reward keys that have already been granted. Rewards in
+## the catalog are claimed exactly once across the lifetime of the
+## save; the ledger ensures reopening the result screen cannot
+## reclaim. Step 20 ships this for the booster economy; daily-
+## challenge rewards (deferred) would key off a device-day string
+## here in a later phase.
+class ClaimedRewards:
+	var claimed: Dictionary = {}
+
+	func _init(p_claimed: Dictionary = {}) -> void:
+		claimed = {}
+		for k in p_claimed:
+			claimed[String(k)] = bool(p_claimed[k])
+
+	func has(p_key: String) -> bool:
+		return bool(claimed.get(p_key, false))
+
+	func mark(p_key: String) -> void:
+		claimed[p_key] = true
+
+	func size() -> int:
+		return claimed.size()
+
+	func keys() -> Array:
+		var out: Array = []
+		for k in claimed:
+			out.append(String(k))
+		return out
+
+	func to_dict() -> Dictionary:
+		var out: Dictionary = {}
+		for k in claimed:
+			out[String(k)] = bool(claimed[k])
+		return {"claimed": out}
+
+	static func from_dict(d: Dictionary) -> ClaimedRewards:
+		var in_v: Variant = d.get("claimed", {})
+		var c: Dictionary = {}
+		if in_v is Dictionary:
+			for k in (in_v as Dictionary):
+				c[String(k)] = bool(in_v[k])
+		return ClaimedRewards.new(c)
+
 ## Snapshot of an active in-progress session. Used to resume a level
 ## that was interrupted (app backgrounded, device rebooted, etc).
 ## The full state is the Session.snapshot_state() dictionary.
@@ -217,6 +260,9 @@ class SaveData:
 	var settings: SettingsRecord = null
 	var tutorial: TutorialFlags = null
 	var active_session: ActiveSession = null
+	## Step 20: claimed reward keys (one entry per granted reward).
+	## Used by the booster economy to ensure idempotent grants.
+	var claimed_rewards: ClaimedRewards = null
 	## Cumulative coins / soft currency. Independent of inventory so
 	## reward grants can be audited separately.
 	var coins: int = 0
@@ -237,6 +283,7 @@ class SaveData:
 		settings = SettingsRecord.new()
 		tutorial = TutorialFlags.new()
 		active_session = ActiveSession.new()
+		claimed_rewards = ClaimedRewards.new()
 		levels = {}
 
 ## The integrity envelope. Stored alongside the data; the IO layer
@@ -301,6 +348,7 @@ static func to_envelope_dict(data: SaveData) -> Dictionary:
 		"settings": data.settings.to_dict(),
 		"tutorial": data.tutorial.to_dict(),
 		"active_session": data.active_session.to_dict(),
+		"claimed_rewards": data.claimed_rewards.to_dict(),
 		"coins": data.coins,
 		"player_name": data.player_name,
 		"created_at": data.created_at,
@@ -420,6 +468,12 @@ static func from_dict(d: Dictionary, out_errors: Array = []) -> SaveData:
 	var sess_in: Variant = d.get("active_session", {})
 	if sess_in is Dictionary:
 		data.active_session = ActiveSession.from_dict(sess_in)
+	# Claimed rewards (Step 20). Optional in older saves; lazy-fill
+	# an empty ClaimedRewards when missing so downstream code can
+	# always call `claimed_rewards.mark(key)` safely.
+	var cr_in: Variant = d.get("claimed_rewards", {})
+	if cr_in is Dictionary and not (cr_in as Dictionary).is_empty():
+		data.claimed_rewards = ClaimedRewards.from_dict(cr_in)
 	# Coins.
 	data.coins = int(d.get("coins", 0))
 	# Player name.
@@ -439,9 +493,6 @@ static func from_dict(d: Dictionary, out_errors: Array = []) -> SaveData:
 ## Migrate a parsed save dictionary forward to SAVE_SCHEMA_VERSION.
 ## Forward-only. Each schema bump appends one migration helper.
 ## This is the entry point the IO layer calls.
-##
-## Currently a single version is shipped; no migrations needed.
-## Future steps append migration_v1_to_v2 etc. and chain them here.
 static func migrate(parsed: Dictionary, out_errors: Array = []) -> Dictionary:
 	if out_errors == null:
 		out_errors = []
@@ -449,11 +500,24 @@ static func migrate(parsed: Dictionary, out_errors: Array = []) -> Dictionary:
 	if version > SAVE_SCHEMA_VERSION:
 		out_errors.append("save schema version %d is newer than this engine supports" % version)
 		return parsed
-	# Future migrations chain here. Example:
-	# if version < 2:
-	#     parsed = _migration_v1_to_v2(parsed)
-	#     version = 2
+	# Step 20: v1 -> v2 adds the claimed_rewards ledger. Older saves
+	# are given an empty ledger so the booster economy can start
+	# granting from a clean state.
+	if version < 2:
+		parsed = migration_v1_to_v2(parsed)
+		version = 2
 	parsed["schema_version"] = SAVE_SCHEMA_VERSION
+	return parsed
+
+## v1 -> v2 migration: insert an empty ClaimedRewards ledger if
+## absent. Reward keys for the launcher set are derived from the
+## current best_stars total so a player upgrading from v1 does not
+## retroactively receive rewards (they will earn them on the next
+## completion that crosses a threshold). The PLAYER'S progress is
+## preserved as-is; only the ledger is fresh.
+static func migration_v1_to_v2(parsed: Dictionary) -> Dictionary:
+	if not parsed.has("claimed_rewards"):
+		parsed["claimed_rewards"] = {"claimed": {}}
 	return parsed
 
 ## Build a SaveMetadata that wraps the given SaveData. The

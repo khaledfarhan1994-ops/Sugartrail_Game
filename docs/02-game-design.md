@@ -272,6 +272,57 @@ The world map is data + a derived view:
   `best_score` monotonically up via
   `SugartrailProgression.record_completion`.
 
+### 6.2 Booster economy (Step 20)
+
+Booster inventory is replenished by **bounded, deterministic,
+idempotent rewards**. A reward fires once across the lifetime of the
+save regardless of how many times its trigger event occurs; the
+ledger is persisted in `SaveData.claimed_rewards`.
+
+Reward triggers (Step 20 launch set):
+
+| Trigger            | Fires when                                                                | Reward                       |
+|--------------------|---------------------------------------------------------------------------|------------------------------|
+| `STARS_TOTAL`      | Total stars across all completed levels crosses a threshold.              | 1 / 2 / 3 / 5 / 8 Swap Retries for the 5 / 15 / 30 / 60 / 100 thresholds respectively. |
+| `CHAPTER_COMPLETE` | A chapter's last level is completed (and the chapter's `level_ids` is known via the catalog). | 2 Swap Retries. |
+| `TUTORIAL_COMPLETE`| A tutorial prompt is marked seen.                                         | 1 Swap Retry per prompt.     |
+
+Balance targets (verified by `tools/sim_economy.gd`):
+
+- A player who 3-stars all 15 launch levels earns **12 Swap
+  Retries** (6 from star thresholds, 6 from chapter completions).
+- Tutorial rewards are a separate +4 Swap Retries on top of the
+  level-play rewards.
+- Combined potential from a full launch playthrough: **16 Swap
+  Retries** at perfect completion, before spending any.
+
+Inventory caps (per-kind `99`, total `999`) prevent exploit via a
+corrupt save; if a reward would exceed the cap, the inventory is
+clamped but the reward is still marked claimed (no re-grant on
+re-open).
+
+Daily-challenge rewards (deferred): the design reserves the ledger
+key shape for a device-day key (`daily:2026-08-15`), but no daily
+challenge ships in Step 20.
+
+### 6.3 Reward integration contract
+
+The domain layer stays pure. `SugartrailRewards.grant_rewards` is
+the single entry point that mutates the save. The application
+layer wires three event sources to it:
+
+1. After every level completion: call
+   `SugartrailProgression.record_completion(save, level_id, score,
+   stars)` then `SugartrailRewards.grant_rewards(save, source,
+   chapter_catalog)`. Star-threshold and chapter-complete triggers
+   evaluate from the new save state.
+2. After a tutorial prompt is shown: call
+   `save.tutorial.mark(prompt_id)` then
+   `SugartrailRewards.grant_rewards(save, source, null)`.
+3. When the result screen opens: it can safely call
+   `SugartrailRewards.grant_rewards` again; the ledger ensures no
+   duplicate grants.
+
 ## 7. Player settings
 
 - Music volume, effects volume, haptics toggle.
