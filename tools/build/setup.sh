@@ -48,17 +48,23 @@ TMPL_DEST="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}"
 if [ -d "$TMPL_DEST" ] && [ -n "$(ls -A "$TMPL_DEST" 2>/dev/null)" ]; then
   log "templates already at $TMPL_DEST"
 else
-  if [ -d "$ROOT/tools/build/templates" ]; then
+  if [ -d "$ROOT/tools/build/templates" ] \
+      && [ -n "$(ls -A "$ROOT/tools/build/templates" 2>/dev/null)" ]; then
     log "copying templates from $ROOT/tools/build/templates -> $TMPL_DEST"
     mkdir -p "$TMPL_DEST"
     cp -r "$ROOT/tools/build/templates/"* "$TMPL_DEST/"
   else
     log "downloading export templates"
     curl -sSL -o "$ROOT/tools/build/cache/templates.tpz" "$GODOT_TEMPLATES_URL"
-    mkdir -p "$ROOT/tools/build/templates"
-    unzip -o -q "$ROOT/tools/build/cache/templates.tpz" -d "$ROOT/tools/build/templates"
+    # The official Godot templates tpz extracts to a `templates/` subdir.
+    # We extract into a scratch dir and then copy the inner contents.
+    SCRATCH="$ROOT/tools/build/cache/templates-extract"
+    rm -rf "$SCRATCH"
+    mkdir -p "$SCRATCH"
+    unzip -o -q "$ROOT/tools/build/cache/templates.tpz" -d "$SCRATCH"
     mkdir -p "$TMPL_DEST"
-    cp -r "$ROOT/tools/build/templates/"* "$TMPL_DEST/"
+    cp -r "$SCRATCH/templates/"* "$TMPL_DEST/"
+    rm -rf "$SCRATCH"
   fi
 fi
 
