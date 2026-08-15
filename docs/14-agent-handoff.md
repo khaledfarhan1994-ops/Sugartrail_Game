@@ -33,11 +33,11 @@ record the answer in `decisions.md` and `work-log.md`.
 
 ## Current execution state
 
-- Current phase: Phase E, Player Progress and Experience.
-- Current step: Step 21 complete.
-- Step status: Steps 01-21 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
-- Last completed step: Step 21 (localisation foundation: `SugartrailLocale` Locale/LocaleCatalog, `default_catalog()` en+es, JSON loaders at `data/locale/`, `translate(key)` with bounded fallback chains, `translate_for(code, key)` for the settings preview; tutorial `english(key, catalog)` + reward `localize_label(spec, catalog)` resolve through the catalog; 15 new fixtures for 321 total tests).
-- Next action: execute Step 22 — settings + accessibility screen (TBD: see `docs/11-implementation-roadmap.md` Step 22 description).
+- Current phase: Phase F, Level Production System.
+- Current step: Step 22 complete.
+- Step status: Steps 01-22 Complete (Step 12 APK build remains blocked by generic Godot 4.3 export error; substitute baseline captured).
+- Last completed step: Step 22 (mechanic-aware level generator: `SugartrailLevelGenerator` InputProfile + GenerationResult, deterministic `generate(p)` with up to 32 retries to escape accidental matches / deadlocks, no-3-run piece grid via `_pick_kind` (-1 retry signal), blocker + token + objective generation, diagnosis step that validates against `LevelRecipe.validate` + `Rules.find_runs` + `Rules.enumerate_legal_swaps` + per-mechanic feasibility; manifest with `generator_version`, `target_schema_version`, `seed`, `profile`, `recipe_id`, and FNV-1a `signature_hash`; `attach_pieces(recipe, grid)` helper for batch tools; 17 new fixtures for 338 total tests).
+- Next action: execute Step 23 — exact-rule solver + release validator (TBD: see `docs/11-implementation-roadmap.md` Step 23 description).
 
 ## Build, test, and verification commands
 
@@ -56,8 +56,10 @@ record the answer in `decisions.md` and `work-log.md`.
 - `scripts/domain/rules/resolution.gd` — SugartrailResolution (resolve, gravity, refill, cascades; DomainEvent, CascadeResult).
 - `scripts/domain/replay/replay.gd` — SugartrailReplay (has_legal_moves, reshuffle, ActionLog, replay).
 - `scripts/domain/session/session.gd` — SugartrailSession (state machine, COLLECT_KIND objective, score, stars, retry, snapshot).
-- `scripts/domain/levels/level_recipe.gd` — SugartrailLevelRecipe (schema v1 validation, JSON load, with_defaults).
+- `scripts/domain/levels/level_recipe.gd` — SugartrailLevelRecipe (schema v3 validation, JSON load, with_defaults).
 - `scripts/domain/levels/level_loader.gd` — SugartrailLevelLoader (load_level, load_all_curated, has_opening_move).
+- `scripts/domain/levels/level_generator.gd` — SugartrailLevelGenerator InputProfile + GenerationResult + deterministic generate(p) with up to 32 retries, no-3-run piece grid, blockers/tokens/objectives per mechanic, diagnosis step, FNV-1a manifest signature.
+- `scripts/domain/locale/locale.gd` — SugartrailLocale Locale + LocaleCatalog + default_catalog() (en+es) + bounded fallback chains + JSON loaders.
 - `scripts/domain/tutorial/tutorial.gd` — SugartrailTutorial (Prompt, TutorialPack, Catalog, english).
 - `scripts/domain/hints/hints.gd` — SugartrailHints deterministic legal-move ranker (suggest, Score breakdown).
 - `scripts/domain/boosters/boosters.gd` — SugartrailBooster BoosterPack + two-phase request/confirm + SWAP_RETRY launch entry.

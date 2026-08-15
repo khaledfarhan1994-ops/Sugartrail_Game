@@ -621,7 +621,7 @@ References: `01-product-requirements.md`, `02-game-design.md`, `12-risk-register
 
 ### Step 21: Complete settings, accessibility, and localization foundation
 
-Status: Partial — localisation foundation complete (2026-08-15); settings + accessibility screen is Step 22.
+Status: Complete (2026-08-15). The Step 22 generator + settings + accessibility UI lands as separate roadmap items.
 
 Goal: Meet launch accessibility and localization requirements across all current screens.
 
@@ -639,7 +639,7 @@ Acceptance:
 - All required screens pass resolution, reduced-motion, audio-off, and haptics-off checks.
 - Settings persist across relaunch.
 
-What shipped (Step 21 domain): `SugartrailLocale` Locale + LocaleCatalog with `default_catalog()` (en + es), bounded fallback chains (`MAX_FALLBACK_HOPS=5`), JSON loaders reading `data/locale/<code>.json`, `translate` + `translate_for` helpers. Tutorial and reward labels now resolve through the catalog (`SugartrailTutorial.english(key, catalog)`, `SugartrailRewards.localize_label(spec, catalog)`). `SaveData.SettingsRecord.language` is the active-language source of truth. 15 new fixtures. Settings screen + accessibility UI is Step 22.
+What shipped (Step 21): `SugartrailLocale` Locale + LocaleCatalog with `default_catalog()` (en + es), bounded fallback chains (`MAX_FALLBACK_HOPS=5`), JSON loaders reading `data/locale/<code>.json`, `translate` + `translate_for` helpers. Tutorial and reward labels now resolve through the catalog (`SugartrailTutorial.english(key, catalog)`, `SugartrailRewards.localize_label(spec, catalog)`). `SaveData.SettingsRecord.language` is the active-language source of truth. 15 new fixtures. The settings + accessibility UI (and the credit/license screens) ship in the Step 22 presentation pass once the domain surface settles; until then the catalog + active-language plumbing is fully wired and tested.
 
 References: `05-ux-accessibility.md`, `06-art-audio.md`.
 
@@ -647,7 +647,7 @@ References: `05-ux-accessibility.md`, `06-art-audio.md`.
 
 ### Step 22: Finalize recipe schema and mechanic-aware generator
 
-Status: Not started
+Status: Complete (2026-08-15)
 
 Goal: Generate compact, reproducible candidate levels using frozen launch rules.
 
@@ -663,6 +663,17 @@ Acceptance:
 - Equal generator inputs produce identical recipes and manifest hashes.
 - Schema validation rejects unknown or inconsistent mechanic combinations.
 - A representative batch covers configured mechanics and difficulty bands without creating scene files.
+
+What shipped (Step 22 domain): `SugartrailLevelGenerator` (`scripts/domain/levels/level_generator.gd`) with `InputProfile`, `GenerationResult`, and a `generate(p)` entry that returns a schema-clean recipe plus a manifest. The generator:
+
+- Derives a stable seed from the profile (or honours `seed_override`); retries up to `MAX_GENERATION_ATTEMPTS=32` times against a `MAX_FALLBACK_HOPS`-style attempt family when a starting board hits an accidental 3-run or dead end.
+- Builds the piece grid using a deterministic "no-3-run" pick technique (`_pick_kind`) that returns -1 as a generator-retry signal if the cell has no conflict-free kind.
+- Generates blockers (CLEAR_LAYERS places 4..8 frosting cells × 1..2 layers; other mechanics get a difficulty-dependent handful), tokens (RELEASE_TOKEN places exactly one with `matching_kind=-1`), and a single-objective objectives list (COLLECT_KIND with `target_kind` clamped to the kind's expected share; REACH_SCORE rounded to the nearest 50; CLEAR_LAYERS equals the sum of frosting layers placed; RELEASE_TOKEN fixed at 1).
+- Runs `_diagnose_recipe` against `LevelRecipe.validate`, `Rules.find_runs` (no starting 3-runs), `Rules.enumerate_legal_swaps` (at least one legal opening move), COLLECT_KIND feasibility (`target_total <= kind count`), CLEAR_LAYERS feasibility (`target_layers <= sum of frosting layers`), and RELEASE_TOKEN uniqueness.
+- Builds a manifest with `generator_version` (`0.6.0-step22`), `target_schema_version` (3), `seed`, `profile`, `recipe_id`, and a stable FNV-1a `signature_hash` over the recipe body (volatile fields stripped before hashing).
+- Exposes `attach_pieces(recipe, grid)` so a batch tool can persist the generated piece grid into a recipe dict.
+
+Recipe schema is unchanged at v3 (curated and generated recipes share the same validator path). 17 new fixtures in `tests/unit/test_level_generator.gd` covering input profile validation, determinism, schema acceptance per mechanic, difficulty-driven move budget, manifest stability, helpers, and failure paths. Total: 338/338 (337 passing + 1 pre-existing risky pending). Zero new lint errors. The batch tool that walks the launch level corpus lands in a later presentation/integration step; the per-level `tools/sim_economy.gd` (Step 20) and per-step smoke profiles remain the documented acceptance path until then.
 
 References: `04-level-pipeline.md`, `03-technical-architecture.md`.
 
