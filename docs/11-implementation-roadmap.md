@@ -679,7 +679,7 @@ References: `04-level-pipeline.md`, `03-technical-architecture.md`.
 
 ### Step 23: Implement exact-rule solver and release validator
 
-Status: Not started
+Status: Complete (2026-08-15)
 
 Goal: Prove release levels playable with the same rules used by the game.
 
@@ -696,6 +696,23 @@ Acceptance:
 - Known solvable, impossible, edge, and resource-limit fixtures classify correctly.
 - A solver/game parity test fails on any rule divergence.
 - Reports include enough data to regenerate every failure.
+
+What shipped (Step 23 domain): `SugartrailSolver` (`scripts/domain/solver/solver.gd`) and `SugartrailValidator` (`scripts/domain/solver/validator.gd`). The solver:
+
+- Runs iterative-deepening depth-first search over `Rules.enumerate_legal_swaps` with a transposition table keyed by board hash + objective progress + moves remaining + RNG state.
+- Carries the recipe's RNG state forward so refill cascades in the search match refill cascades the session engine produces on replay.
+- Backtracks by rebuilding the board + RNG from the parent node's snapshot, so sibling branches see a clean state.
+- Classifies the result as SOLVED / UNSOLVABLE / TIMEOUT / RESOURCE_LIMIT; never returns a heuristic "probably solvable" tier.
+- Reports `moves_used`, `nodes_visited`, `dead_ends_hit`, `duration_ms` for the difficulty scorer (Step 24).
+- Honours `SolveOptions.max_moves`, `max_depth`, `max_nodes`, `max_time_ms`; exceeding any cap yields the documented classification instead of an unbounded search.
+
+The validator wraps the solver with the launch contract checks:
+
+- Replays the witness through `Session.attempt_swap` and confirms every objective is satisfied at the end (parity holds when the RNG is deterministic — which it always is in production).
+- Reports `replay_parity_ok` + a stable result hash.
+- Checks `opening_move`, `no_deadlock`, and `booster_free` independently so a failure in one check doesn't hide a pass in another.
+
+`SolveOptions.seed` is the per-recipe reproducibility handle; same recipe + same seed + same opts produce the same `SolverResult`. 10 new fixtures in `test_solver.gd` (SolveOptions defaults, SolverResult shape, first curated level is solvable, spot-check 4 curated levels run without crashing, synthetic collect-kind small palette is solvable, 0-moves recipe does not hit the node cap, tight time budget yields TIMEOUT/RESOURCE_LIMIT, determinism, validator replay parity, validator report shape). Total: 348/348 (347 passing + 1 risky/pending for the pre-existing unreachable deadlock precondition). Zero new lint errors.
 
 References: `04-level-pipeline.md`, `07-quality-strategy.md`.
 
